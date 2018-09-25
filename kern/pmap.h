@@ -62,6 +62,13 @@ void	page_decref(struct PageInfo *pp);
 
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
+/*
+ *Pages contiene un puntero a una extructura externa
+ *pp contiene la direccion de la pagina a calcular
+ * La funcion calcula la diferencia entre las dos direcciones
+  y la divide por el tamaño de una pagina. Entonces obtiene el numero
+  de pagina fisica.
+*/
 static inline physaddr_t
 page2pa(struct PageInfo *pp)
 {

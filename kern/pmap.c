@@ -8,7 +8,7 @@
 
 #include <kern/pmap.h>
 #include <kern/kclock.h>
-
+#include<inc/memlayout.h>
 // These variables are set by i386_detect_memory()
 size_t npages;                 // Amount of physical memory (in pages)
 static size_t npages_basemem;  // Amount of base memory (in pages)
@@ -103,10 +103,15 @@ boot_alloc(uint32_t n)
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
-	//
-	// LAB 2: Your code here.
 
-	return NULL;
+
+	if(nextfree+n*PGSIZE>(char *)KERNBASE+npages*PGSIZE){
+		panic("not enough memory to allocate pages");
+	}
+
+	char *ret = nextfree;
+	nextfree += n*PGSIZE;
+	return ret;
 }
 
 // Set up a two-level page table:
@@ -128,7 +133,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -153,8 +158,9 @@ mem_init(void)
 	// memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-
-
+	
+	pages = boot_alloc(PGSIZE*npages);
+	memset(pages,0,PGSIZE*npages);
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
