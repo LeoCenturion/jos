@@ -98,20 +98,25 @@ boot_alloc(uint32_t n)
 	if (!nextfree) {
 		extern char end[];
 		nextfree = ROUNDUP((char *) end, PGSIZE);
+
 	}
 
 	// Allocate a chunk large enough to hold 'n' bytes, then update
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
 
+       int num_of_pages =n/PGSIZE + 1;// ROUNDUP(n,PGSIZE);
 
-	if(nextfree+n*PGSIZE>(char *)KERNBASE+npages*PGSIZE){
+	if(nextfree+n>(char *)KERNBASE+npages*PGSIZE){
 		panic("not enough memory to allocate pages");
 	}
+	else{
+		char *ret = nextfree;
+		nextfree += num_of_pages*PGSIZE;
+	 	return ret;
+	}
 
-	char *ret = nextfree;
-	nextfree += n*PGSIZE;
-	return ret;
+
 }
 
 // Set up a two-level page table:
@@ -262,6 +267,8 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+	pages[0].pp_ref = 1;
+	
 	size_t i;
 	for (i = 0; i < npages; i++) {
 		pages[i].pp_ref = 0;
