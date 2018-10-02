@@ -346,17 +346,19 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	pte_t pt_base = pgdir[pd_idx]; // puntero a la pde
 	
 	uint32_t pt_idx = PTX(va);
-	pte_t* pte = KADDR(PTE_ADDR(pt_base));
+	pte_t* pte = *KADDR(PTE_ADDR(pt_base));
 	
-	if( *pte == 0 && create ){
+	if( *pte == 0 & create ){
 		struct PageInfo *page = page_alloc(ALLOC_ZERO);
-		pte_t pa = page2pa(page); //page2pa devuelve un physaddr_t, pero lo que hay que guardar en pte son pete_t
+		physaddr_t pa = page2pa(page);
 		*pte = pa;
 	} 
-	if( *pte == 0 && !create)
+	if( *pte == 0 & !create)
 		return NULL;
 
-	return &pte[pt_idx];
+	 // puntero (físico) a la pte 
+
+	return &pte[pt_idx];	//  ??????????????????????????????????????????????????????????????????????????
 }
 
 //
@@ -410,7 +412,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	}
 
 	pp->pp_ref++;
-	if( *pte != 0){
+	if( *pte != NULL){
 		page_remove(pgdir,va);
 	}
 	*pte = perm|page2pa(pp);
@@ -458,19 +460,20 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	struct PageInfo *page = page_lookup(pgdir,va, NULL); //VER TERCER PARAMETRO ???????????????????????????????
+	struct PageInfo *page = page_lookup(pgdir,va);
 	pte_t *pte = pgdir_walk(pgdir,va,0);
 
-	//The pg table entry corresponding to 'va' should be set to 0.(if such a PTE exists)
-	*pte=0;
+	*pte=NULL;
+	/*
+	limpiar PTE
+	decref(pag)
 
-	//The ref count on the physical page should decrement.
-	//The physical page should be freed if the refcount reaches 0.
-	page_decref(page);
 
-	//The TLB must be invalidated if you remove an entry from the page table.
-	tlb_invalidate(pgdir, va); //DEBERIA ESTAR ANTES QUE page_decref???????????????????????????????????????????
-								//CREO QUE ES LO MISMO, PORQUE INVALIDA LA ENTRADA, NO LA PAGINA
+	o
+
+	
+	page_lookup
+	*/
 }
 
 //
