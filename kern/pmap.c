@@ -365,8 +365,21 @@ page_decref(struct PageInfo *pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
-	return NULL;
+	uint32_t pd_idx = PDX(va);
+	pte_t pt_base = pgdir[pd_idx]; // puntero a la pde
+	
+	uint32_t pt_idx = PTX(va);
+	pte_t* pte = KADDR(PTE_ADDR(pt_base));
+	
+	if( *pte == 0 && create ){
+		struct PageInfo *page = page_alloc(ALLOC_ZERO);
+		pte_t pa = page2pa(page); //page2pa devuelve un physaddr_t, pero lo que hay que guardar en pte son pete_t
+		*pte = pa;
+	} 
+	if( *pte == 0 && !create)
+		return NULL;
+
+	return &pte[pt_idx];
 }
 
 //
@@ -414,7 +427,17 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
-	// Fill this function in
+	pte_t * pte = pgdir_walk(pgdir,va,1);
+	if (pte == NULL){
+		return E_NO_MEM;
+	}
+
+	pp->pp_ref++;
+	if( *pte != 0){
+		page_remove(pgdir,va);
+	}
+	*pte = perm|page2pa(pp);
+	
 	return 0;
 }
 
@@ -432,8 +455,12 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
-	// Fill this function in
-	return NULL;
+	pte_t* pte = pgdir_walk(pgdir,va,0);
+	if(**pte_store){
+		*pte_store = pte;
+	}
+
+	return (pte==NULL)?NULL:pa2page(PTE_ADDR(*pte));
 }
 
 //
@@ -454,7 +481,19 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+	struct PageInfo *page = page_lookup(pgdir,va, NULL); //VER TERCER PARAMETRO ???????????????????????????????
+	pte_t *pte = pgdir_walk(pgdir,va,0);
+
+	//The pg table entry corresponding to 'va' should be set to 0.(if such a PTE exists)
+	*pte=0;
+
+	//The ref count on the physical page should decrement.
+	//The physical page should be freed if the refcount reaches 0.
+	page_decref(page);
+
+	//The TLB must be invalidated if you remove an entry from the page table.
+	tlb_invalidate(pgdir, va); //DEBERIA ESTAR ANTES QUE page_decref???????????????????????????????????????????
+								//CREO QUE ES LO MISMO, PORQUE INVALIDA LA ENTRADA, NO LA PAGINA
 }
 
 //
