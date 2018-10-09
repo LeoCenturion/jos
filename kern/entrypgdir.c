@@ -17,18 +17,24 @@ pte_t entry_pgtable[NPTENTRIES];
 // related to linking and static initializers, we use "x + PTE_P"
 // here, rather than the more standard "x | PTE_P".  Everywhere else
 // you should use "|" to combine flags.
-__attribute__((__aligned__(PGSIZE)))
+/*__attribute__((__aligned__(PGSIZE)))
 pde_t entry_pgdir[NPDENTRIES] = {
 	// Map VA's [0, 4MB) to PA's [0, 4MB)
 	[0]
-		= ((uintptr_t)entry_pgtable - KERNBASE) + PTE_P,
+		= ((uintptr_t)entry_pgtable - KERNBASE) + PTE_P + PTE_PS,
 	// Map VA's [KERNBASE, KERNBASE+4MB) to PA's [0, 4MB)
 	[KERNBASE>>PDXSHIFT]
-		= ((uintptr_t)entry_pgtable - KERNBASE) + PTE_P + PTE_W
-};
+		= ((uintptr_t)entry_pgtable - KERNBASE) + PTE_P + PTE_W + PTE_PS
+};*/
 
+__attribute__((__aligned__(PGSIZE)))
+pde_t entry_pgdir[NPDENTRIES] = {
+	[0] = 0x0 | PTE_P | PTE_PS,
+	[KERNBASE>>PDXSHIFT] = 0x0 | PTE_P | PTE_PS | PTE_W
+};
 // Entry 0 of the page table maps to physical page 0, entry 1 to
 // physical page 1, etc.
+#if 0
 __attribute__((__aligned__(PGSIZE)))
 pte_t entry_pgtable[NPTENTRIES] = {
 	0x000000 | PTE_P | PTE_W,
@@ -1057,3 +1063,4 @@ pte_t entry_pgtable[NPTENTRIES] = {
 	0x3ff000 | PTE_P | PTE_W,
 };
 
+#endif

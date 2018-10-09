@@ -429,12 +429,32 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
+	#ifndef TP1_PSE
 	for(size_t i=0;i < size ;i+=PGSIZE){
 		pte_t *pte = pgdir_walk(pgdir, (void *)(va + i) ,1);
 		if(!pte)
 			panic("!pte");
 		*pte = (pa + i)|PTE_P|perm;
 	}
+	#else
+	pde_t *pde;
+	for(size_t i=0; i<size; i+=(PGSIZE*1024)){
+		if(size < i + PGSIZE*1024){
+			pte_t *pte;
+			for(size_t j=i; j < size; j+=PGSIZE){
+				pte = pgdir_walk(pgdir,(void*)(va+j),1);
+				if(!pte)
+					panic("!pte");
+				*pte = (pa + j) | PTE_P | perm;
+			}
+		}
+		else{
+			uint32_t pd_index = (uint32_t )PDX(va + i);
+			pde = pgdir + pd_index;
+			*pde = (pa + i) | PTE_P | PTE_PS | perm;
+		}
+	}
+	#endif
 }
 //
 // Map the physical page 'pp' at virtual address 'va'.
@@ -644,7 +664,7 @@ check_page_alloc(void)
 	// check number of free pages
 	for (pp = page_free_list, nfree = 0; pp; pp = pp->pp_link)
 		++nfree;
-	cprintf("test");
+	cprintf("test\n");
 	// should be able to allocate three pages
 	pp0 = pp1 = pp2 = 0;
 	assert((pp0 = page_alloc(0)));
@@ -723,8 +743,6 @@ check_kern_pgdir(void)
 	n = ROUNDUP(npages * sizeof(struct PageInfo), PGSIZE);
 	for (i = 0; i < n; i += PGSIZE)
 		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-
-
 	// check phys mem
 	for (i = 0; i < npages * PGSIZE; i += PGSIZE)
 		assert(check_va2pa(pgdir, KERNBASE + i) == i);
