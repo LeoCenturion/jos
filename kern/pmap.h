@@ -8,6 +8,7 @@
 
 #include <inc/memlayout.h>
 #include <inc/assert.h>
+struct Env;
 
 extern char bootstacktop[], bootstack[];
 
@@ -62,6 +63,7 @@ void	page_decref(struct PageInfo *pp);
 
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
+
 /*
  *Pages contiene un puntero a una extructura externa
  *pp contiene la direccion de la pagina a calcular
@@ -69,6 +71,11 @@ void	tlb_invalidate(pde_t *pgdir, void *va);
   y la divide por el tamaño del struct. Entonces obtiene el numero
   de pagina fisica.
 */
+
+int	user_mem_check(struct Env *env, const void *va, size_t len, int perm);
+void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
+
+
 static inline physaddr_t
 page2pa(struct PageInfo *pp)
 {
