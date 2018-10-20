@@ -30,7 +30,7 @@ static struct Env *env_free_list;  // Free environment list
 // To load the SS register, the CPL must equal the DPL.  Thus,
 // we must duplicate the segments for the user and the kernel.
 //
-// In particular, the last argument to the SEG macro used in the
+// In particular, the last argument to the SEG macro used in thennn
 // definition of gdt specifies the Descriptor Privilege Level (DPL)
 // of that descriptor: 0 for kernel and 3 for user.
 //
@@ -113,7 +113,6 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-	
 	int i;
 
 
@@ -124,8 +123,7 @@ env_init(void)
 
 	}
 
-	
-	
+
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -188,8 +186,11 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
-
-	// UVPT maps the env's own page table read-only.
+	e->env_pgdir =page2kva(p);
+	p->pp_ref++;
+	size_t kernsize = 0x0fffffff ;
+	memcpy(p + PDX(KERNBASE),kern_pgdir,kernsize);
+// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
 
@@ -271,7 +272,19 @@ region_alloc(struct Env *e, void *va, size_t len)
 {
 	// LAB 3: Your code here.
 	// (But only if you need it for load_icode.)
-	//
+	void* base = ROUNDDOWN(va,PGSIZE);
+	void* bound = ROUNDUP(va + len,PGSIZE);
+	size_t size = (size_t)ROUNDUP(len,PGSIZE);
+	struct PageInfo* p;
+
+	for(size_t i=0;i < size ;i+=PGSIZE){
+		p = page_alloc(PTE_U + PTE_W);
+		int err = page_insert(e->env_pgdir,p, (void *)(base + i),PTE_U + PTE_W );
+		if(err)
+			panic("region alloc error");
+	}
+
+
 	// Hint: It is easier to use region_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
@@ -291,7 +304,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 // that are marked in the program header as being mapped
 // but not actually present in the ELF file - i.e., the program's bss section.
 //
-// All this is very similar to what our boot loader does, except the boot
+// All this is very similar to what our boot loader does, except the boot 
 // loader also needs to read the code from disk.  Take a look at
 // boot/main.c to get ideas.
 //
@@ -332,10 +345,18 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-
+	void* program = *(binary + 0x1c); //0x1c: e_phoff
+	size_t memsz = (size_t)*(program + 0x14);//p_memsz
+	void* va =(void*) *(program + 0x8); //p_vaddr
+	region_alloc(e,va,memsz);
+	size_t  offset = *(program + 0x4);
+	size_t  filesz = *(program + 0x10);
+	memcpy(va,program + offset,filesz);//0x4: p_offset
+	                                          //0x10: p_filesz
+	memset(va + filesz, 0,memsz-filesz);
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-
+	
 	// LAB 3: Your code here.
 }
 
