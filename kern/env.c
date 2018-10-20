@@ -345,19 +345,27 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-	void* program = *(binary + 0x1c); //0x1c: e_phoff
-	size_t memsz = (size_t)*(program + 0x14);//p_memsz
-	void* va =(void*) *(program + 0x8); //p_vaddr
-	region_alloc(e,va,memsz);
-	size_t  offset = *(program + 0x4);
-	size_t  filesz = *(program + 0x10);
-	memcpy(va,program + offset,filesz);//0x4: p_offset
-	                                          //0x10: p_filesz
-	memset(va + filesz, 0,memsz-filesz);
+	uint8_t* ph_first = binary + *(binary + 0x1c); //0x1c: e_phoff
+	size_t phnum = *(binary + 0x30);
+	size_t phentsize = *(binary + 0x2a);
+	uint8_t* bound = ph_first + phnum*phentsize;
+
+	for(uint8_t *ph = ph_first; ph < bound; ph += phentsize){
+		size_t memsz = (size_t)*(ph + 0x14);
+		uint8_t* va = (ph + 0x8);
+		region_alloc(e,va,memsz);
+
+		size_t  offset = *(ph + 0x4);
+		size_t  filesz = *(ph + 0x10);
+		memcpy(va, (void *) (ph + offset),filesz);
+
+		memset(va + filesz, 0,memsz-filesz);
+	}
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 	
 	// LAB 3: Your code here.
+	lcr3(PADDR(e->env_pgdir));
 }
 
 //
