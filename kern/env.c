@@ -188,8 +188,8 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
 	e->env_pgdir =page2kva(p);
 	p->pp_ref++;
-	size_t kernsize = 0x0fffffff ;
-	memcpy(p + PDX(KERNBASE),kern_pgdir,kernsize);
+	size_t kernsize = PGSIZE;
+	memcpy(e->env_pgdir,kern_pgdir,kernsize);
 // UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
@@ -351,15 +351,17 @@ load_icode(struct Env *e, uint8_t *binary)
 	uint8_t* bound = ph_first + phnum*phentsize;
 
 	for(uint8_t *ph = ph_first; ph < bound; ph += phentsize){
-		size_t memsz = (size_t)*(ph + 0x14);
-		uint8_t* va = (ph + 0x8);
-		region_alloc(e,va,memsz);
+		if( *ph == 0x1){
+			size_t memsz = (size_t)*(ph + 0x14);
+			uint8_t* va = (ph + 0x8);
+			region_alloc(e,va,memsz);
 
-		size_t  offset = *(ph + 0x4);
-		size_t  filesz = *(ph + 0x10);
-		memcpy(va, (void *) (ph + offset),filesz);
+			size_t  offset = *(ph + 0x4);
+			size_t  filesz = *(ph + 0x10);
+			memcpy(va, (void *) (ph + offset),filesz);
 
-		memset(va + filesz, 0,memsz-filesz);
+			memset(va + filesz, 0,memsz-filesz);
+		}
 	}
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
@@ -379,6 +381,14 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *e;
+	int err = env_alloc(&e, 0);
+	if(err < 0)
+		panic("panic");
+
+	load_icode(e,binary);
+	e->env_type = type;
+	
 }
 
 //
