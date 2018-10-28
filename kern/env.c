@@ -1,3 +1,5 @@
+
+
 /* See COPYRIGHT for copyright information. */
 
 #include <inc/x86.h>
@@ -116,11 +118,10 @@ env_init(void)
 	int i;
 
 
-	for (i = NENV - 1 ; i >= 0; i--) {
+	for (i = NENV - 1; i >= 0; i--) {
 		envs[i].env_pgdir = kern_pgdir;
 		envs[i].env_link = env_free_list;
 		env_free_list = &(envs[i]);
-
 	}
 
 
@@ -186,11 +187,13 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
-	e->env_pgdir =page2kva(p);
+	e->env_pgdir = page2kva(p);
 	p->pp_ref++;
-	size_t kernsize = 0x0fffffff ;
-	memcpy(p + PDX(KERNBASE),kern_pgdir,kernsize);
-// UVPT maps the env's own page table read-only.
+	size_t kernsize = PGSIZE;
+
+	memcpy(e->env_pgdir, kern_pgdir, kernsize);
+
+	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
 
@@ -272,15 +275,16 @@ region_alloc(struct Env *e, void *va, size_t len)
 {
 	// LAB 3: Your code here.
 	// (But only if you need it for load_icode.)
-	void* base = ROUNDDOWN(va,PGSIZE);
-	void* bound = ROUNDUP(va + len,PGSIZE);
-	size_t size = (size_t)ROUNDUP(len,PGSIZE);
-	struct PageInfo* p;
+	void *base = ROUNDDOWN(va, PGSIZE);
+	void *bound = ROUNDUP(va + len, PGSIZE);
+	size_t size = (size_t) ROUNDUP(len, PGSIZE);
+	struct PageInfo *p;
 
-	for(size_t i=0;i < size ;i+=PGSIZE){
+	for (size_t i = 0; i < size; i += PGSIZE) {
 		p = page_alloc(PTE_U + PTE_W);
-		int err = page_insert(e->env_pgdir,p, (void *)(base + i),PTE_U + PTE_W );
-		if(err)
+		int err = page_insert(
+		        e->env_pgdir, p, (void *) (base + i), PTE_U + PTE_W);
+		if (err)
 			panic("region alloc error");
 	}
 
@@ -304,7 +308,7 @@ region_alloc(struct Env *e, void *va, size_t len)
 // that are marked in the program header as being mapped
 // but not actually present in the ELF file - i.e., the program's bss section.
 //
-// All this is very similar to what our boot loader does, except the boot 
+// All this is very similar to what our boot loader does, except the boot
 // loader also needs to read the code from disk.  Take a look at
 // boot/main.c to get ideas.
 //
@@ -345,25 +349,25 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-	uint8_t* ph_first = binary + *(binary + 0x1c); //0x1c: e_phoff
+	uint8_t *ph_first = binary + *(binary + 0x1c);  // 0x1c: e_phoff
 	size_t phnum = *(binary + 0x30);
 	size_t phentsize = *(binary + 0x2a);
-	uint8_t* bound = ph_first + phnum*phentsize;
+	uint8_t *bound = ph_first + phnum * phentsize;
 
-	for(uint8_t *ph = ph_first; ph < bound; ph += phentsize){
-		size_t memsz = (size_t)*(ph + 0x14);
-		uint8_t* va = (ph + 0x8);
-		region_alloc(e,va,memsz);
+	for (uint8_t *ph = ph_first; ph < bound; ph += phentsize) {
+		size_t memsz = (size_t) * (ph + 0x14);
+		uint8_t *va = (ph + 0x8);
+		region_alloc(e, va, memsz);
 
-		size_t  offset = *(ph + 0x4);
-		size_t  filesz = *(ph + 0x10);
-		memcpy(va, (void *) (ph + offset),filesz);
+		size_t offset = *(ph + 0x4);
+		size_t filesz = *(ph + 0x10);
+		memcpy(va, (void *) (ph + offset), filesz);
 
-		memset(va + filesz, 0,memsz-filesz);
+		memset(va + filesz, 0, memsz - filesz);
 	}
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-	
+
 	// LAB 3: Your code here.
 	lcr3(PADDR(e->env_pgdir));
 }
@@ -379,6 +383,12 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	struct Env *new_env;
+	int err = env_alloc(&new_env, 0);
+	if (err < 0)
+		panic("env create: %e", err);
+	load_icode(new_env, binary);
+	new_env->env_type = type;
 }
 
 //
