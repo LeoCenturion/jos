@@ -119,7 +119,7 @@ env_init(void)
 
 
 	for (i = NENV - 1; i >= 0; i--) {
-		envs[i].env_pgdir = kern_pgdir;
+		envs[i].env_id = 0;
 		envs[i].env_link = env_free_list;
 		env_free_list = &(envs[i]);
 	}
@@ -355,7 +355,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	size_t phentsize = *(binary + 0x2a);
 	uint8_t *bound = ph_first + phnum * phentsize;
 
-
+	lcr3(PADDR(e->env_pgdir));
 	for(uint8_t *ph = ph_first; ph < bound; ph += phentsize){
 		if( *ph == 0x1){
 			size_t memsz = (size_t)*(ph + 0x14);
@@ -364,17 +364,23 @@ load_icode(struct Env *e, uint8_t *binary)
 
 			size_t  offset = *(ph + 0x4);
 			size_t  filesz = *(ph + 0x10);
+			memset(va, 0, memsz);
 			memcpy(va, (void *) (ph + offset),filesz);
 
-			memset(va + filesz, 0,memsz-filesz);
+//			memset(va + filesz, 0,memsz-filesz);
 		}
 
 	}
+	lcr3(PADDR(kern_pgdir));
+	
+	e->env_tf.tf_eip = *(binary + 0x18);
+
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-
+	
 	// LAB 3: Your code here.
-	lcr3(PADDR(e->env_pgdir));
+
+	
 }
 
 //
@@ -475,6 +481,8 @@ env_destroy(struct Env *e)
 void
 env_pop_tf(struct Trapframe *tf)
 {
+	cprintf("sizeof tf: %d \n",sizeof(struct Trapframe));
+	cprintf("sizeof int: %d \n",sizeof(int));
 	asm volatile("\tmovl %0,%%esp\n"
 	             "\tpopal\n"
 	             "\tpopl %%es\n"
@@ -514,6 +522,17 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
+	if(curenv != e){
+		if((curenv != NULL) && (curenv->env_status == ENV_RUNNING))
+		   curenv->env_status = ENV_RUNNABLE;
+			
+		curenv = e;
+		curenv->env_status = ENV_RUNNING;
+		curenv->env_runs++;
+		lcr3(PADDR(curenv->env_pgdir));
+	}
 
-	panic("env_run not yet implemented");
+	env_pop_tf(&curenv->env_tf);
+	panic("run env");
+
 }
