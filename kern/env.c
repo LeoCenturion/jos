@@ -192,7 +192,7 @@ env_setup_vm(struct Env *e)
 	p->pp_ref++;
 	size_t kernsize = PGSIZE;
 
-	memcpy(e->env_pgdir, kern_pgdir, kernsize);
+	memcpy(e->env_pgdir, kern_pgdir,PGSIZE);
 
 	// UVPT maps the env's own page table read-only.
 
@@ -279,13 +279,13 @@ region_alloc(struct Env *e, void *va, size_t len)
 	// (But only if you need it for load_icode.)
 	void *base = ROUNDDOWN(va, PGSIZE);
 	void *bound = ROUNDUP(va + len, PGSIZE);
-	size_t size = (size_t) ROUNDUP(len, PGSIZE)/PGSIZE;
+//	size_t size = (size_t) ROUNDUP(len, PGSIZE)/PGSIZE;
 	struct PageInfo *p;
 
 	for (void* addr = base; addr < bound; addr += PGSIZE) {
 		p = page_alloc(PTE_U + PTE_W);
 		int err = page_insert(
-		        e->env_pgdir, p, (void *) (addr), PTE_U + PTE_W);
+		        e->env_pgdir, p, (void *) (addr), PTE_U | PTE_W);
 		if (err)
 			panic("region alloc error");
 	}
@@ -352,71 +352,31 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 
-/*
-	uint8_t *ph_first = binary + *(binary + 0x1c);  // 0x1c: e_phoff
-	size_t phnum = *(binary + 0x30);
-	size_t phentsize = *(binary + 0x2a);
-	uint8_t *bound = ph_first + phnum * phentsize;
 
-	lcr3(PADDR(e->env_pgdir));
-	for(uint8_t *ph = ph_first; ph < bound; ph += phentsize){
-		if( *ph == 0x1){
-			size_t memsz = (size_t)*(ph + 0x14);
-			uint8_t* va = (ph + 0x8);
-			region_alloc(e,va,memsz);
 
-			size_t  offset = *(ph + 0x4);
-			size_t  filesz = *(ph + 0x10);
-			memset(va, 0, memsz);
-			memcpy(va, (void *) (ph + offset),filesz);
-
-//			memset(va + filesz, 0,memsz-filesz);
-		}
-
+	struct Elf *ELFHDR = (struct Elf *) binary;
+	struct Proghdr *ph;				//Program Header
+	int ph_num;						//Program entry number
+	if (ELFHDR->e_magic != ELF_MAGIC) {
+		panic("binary is not ELF format\n");
 	}
-	lcr3(PADDR(kern_pgdir));
-	
-	e->env_tf.tf_eip = *(binary + 0x18);
+	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
+	ph_num = ELFHDR->e_phnum;
 
-	// Now map one page for the program's initial stack
-	// at virtual address USTACKTOP - PGSIZE.
-	
-	// LAB 3: Your code here.
-	region_alloc(e, (void *) (USTACKTOP - PGSIZE), PGSIZE);
+	lcr3(PADDR(e->env_pgdir));			
+							
 
-
-*/
-
-	struct Elf *bin = (struct Elf *) binary;
-	// is this a valid ELF?
-	if (bin->e_magic != ELF_MAGIC)
-		panic("load_icode: 'binary' is not a valid ELF binary\n");
-	
-	struct Proghdr *progHeader, *eph;
-
-	progHeader = (struct Proghdr *) (binary + bin->e_phoff);
-	eph = progHeader + bin->e_phnum;
-
-	lcr3(PADDR(e->env_pgdir));
-	
-	for (; progHeader < eph; progHeader++){
-		if (progHeader->p_type == ELF_PROG_LOAD) {
-			//The ELF header should have ph->p_filesz <= ph->p_memsz
-			if (progHeader->p_filesz > progHeader->p_memsz)
-				panic("load_icode: ph->p_filesz > ph->p_memsz\n");
-
-			if (progHeader->p_va + progHeader->p_memsz < USTACKTOP) {
-				region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
-				memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
-				memset((void *) progHeader->p_va, 0, progHeader->p_memsz);
-			}
+	for (int i = 0; i < ph_num; i++) {
+		if (ph[i].p_type == ELF_PROG_LOAD){
+			region_alloc(e, (void *)ph[i].p_va, ph[i].p_memsz);
+			memset((void *)ph[i].p_va, 0, ph[i].p_memsz);
+			memcpy((void *)ph[i].p_va, binary + ph[i].p_offset, ph[i].p_filesz);
 		}
 	}
-	
+
 	lcr3(PADDR(kern_pgdir));
-	
-	e->env_tf.tf_eip = bin->e_entry;
-	
+
+	e->env_tf.tf_eip = ELFHDR->e_entry;
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
@@ -443,8 +403,6 @@ env_create(uint8_t *binary, enum EnvType type)
 
 	load_icode(e,binary);
 	e->env_type = type;
-
-
 }
 
 //
