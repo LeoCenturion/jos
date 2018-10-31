@@ -63,5 +63,138 @@ El current privilege level sólo puede ser modificado mediante instrucciones del
 
 gdb_hello
 ---------
+1. Poner un breakpoint en env_pop_tf() y continuar la ejecución hasta allí.
+(gdb) b env_pop_tf
+Punto de interrupción 1 at 0xf01033a3: file kern/env.c, line 526.
+(gdb) c
+Continuando.
+Se asume que la arquitectura objetivo es i386
+=> 0xf01033a3 <env_pop_tf>:    push   %ebp
 
-...
+Breakpoint 1, env_pop_tf (
+    tf=<error de lectura de variable: no se puede computar CFA para este marco>) at kern/env.c:526
+526    {
+
+2. En QEMU, entrar en modo monitor (Ctrl-a c), y mostrar las cinco primeras líneas del comando info registers.
+(qemu) info registers
+EAX=f01c0000 EBX=00010094 ECX=f03bc000 EDX=0000023f
+ESI=00010094 EDI=00000000 EBP=f0118fd8 ESP=f0118fbc
+EIP=f01033a3 EFL=00000012 [----A--] CPL=0 II=0 A20=1 SMM=0 HLT=0
+ES =0010 00000000 ffffffff 00cf9300 DPL=0 DS   [-WA]
+CS =0008 00000000 ffffffff 00cf9a00 DPL=0 CS32 [-R-]
+
+3. De vuelta a GDB, imprimir el valor del argumento tf:
+(gdb) p tf
+$1 = (struct Trapframe *) 0xf01c0000
+
+4. Imprimir, con x/Nx tf tantos enteros como haya en el struct Trapframe donde N = sizeof(Trapframe) / sizeof(int).
+(gdb) print sizeof(struct Trapframe) / sizeof(int)
+$2 = 17
+(gdb) x/17x tf
+0xf01c0000:    0x00000000    0x00000000    0x00000000    0x00000000
+0xf01c0010:    0x00000000    0x00000000    0x00000000    0x00000000
+0xf01c0020:    0x00000023    0x00000023    0x00000000    0x00000000
+0xf01c0030:    0x00800020    0x0000001b    0x00000000    0xeebfe000
+0xf01c0040:    0x00000023
+
+5. Avanzar hasta justo después del movl ...,%esp, usando si M para ejecutar tantas instrucciones como sea necesario en un solo paso:
+(gdb) disas
+Dump of assembler code for function env_pop_tf:
+=> 0xf01033a3 <+0>:    push   %ebp
+   0xf01033a4 <+1>:    mov    %esp,%ebp
+   0xf01033a6 <+3>:    sub    $0x18,%esp
+   0xf01033a9 <+6>:    mov    0x8(%ebp),%esp
+   0xf01033ac <+9>:    popa   
+   0xf01033ad <+10>:    pop    %es
+   0xf01033ae <+11>:    pop    %ds
+   0xf01033af <+12>:    add    $0x8,%esp
+   0xf01033b2 <+15>:    iret   
+   0xf01033b3 <+16>:    movl   $0xf01059d1,0x8(%esp)
+   0xf01033bb <+24>:    movl   $0x21a,0x4(%esp)
+   0xf01033c3 <+32>:    movl   $0xf0105982,(%esp)
+   0xf01033ca <+39>:    call   0xf01000c6 <_panic>
+End of assembler dump.
+
+(gdb) si 4
+=> 0xf01033ac <env_pop_tf+9>:    popa   
+0xf01033ac    529        asm volatile("\tmovl %0,%%esp\n"
+
+6. Comprobar, con x/Nx $sp que los contenidos son los mismos que tf (donde N es el tamaño de tf).
+(gdb) x/17x $sp
+0xf01c0000:    0x00000000    0x00000000    0x00000000    0x00000000
+0xf01c0010:    0x00000000    0x00000000    0x00000000    0x00000000
+0xf01c0020:    0x00000023    0x00000023    0x00000000    0x00000000
+0xf01c0030:    0x00800020    0x0000001b    0x00000000    0xeebfe000
+0xf01c0040:    0x00000023
+
+7. Explicar con el mayor detalle posible cada uno de los valores. Para los valores no nulos, se debe indicar dónde se configuró inicialmente el valor, y qué representa.
+Los primeros ocho valores, que tienen como valor 0x00000000, corresponden a los registros de propósito general que se encuentran en el struct PushRegs tf_regs. El orden de estos es:  %edi, %esi, %ebp, %oesp, %ebx, %edx, %ecx y %eax.
+
+0x00000023 corresponde al selector %es: en binario, 0..00100011, se puede ver que los últimos dos bits (en decimal: 3) corresponden al RPL (Requested Privilege Level), el bit siguiente (0) indica la tabla GDT,los siguientes bits (en decimal: 4) indican el índice. 
+Inicialmente se configuró en env_alloc: e->env_tf.tf_es = GD_UD | 3.
+
+0x00000023 corresponde al selector %ds: Ídem %es.
+
+0x00000000 corresponde a tf_trapno.
+
+0x00000000 corresponde a tf_err.
+
+0x00800020 corresponde a %eip: representa la siguiente instrucción a ejecutarse del proceso. Su valor se asignó en load_icode: e->env_tf.tf_eip = bin->e_entry.
+
+0x0000001b corresponde al selector %cs: en binario, 0011011, se puede ver que los últimos dos bits (en decimal: 3) corresponden al RPL, el bit siguiente (0) indica la tabla GDT,los siguientes bits indican el índice (en decimal: 3).
+Inicialmente se configuró en env_alloc: e->env_tf.tf_cs = GD_UT | 3. 
+
+0x00000000 corresponde a %eflags: Es el registro en donde se almacenan en distintos bits los resultados de las operaciones y el estado del procesador.
+Inicialmente se configuró en env_alloc: memset(&e->env_tf, 0, sizeof(e->env_tf)).
+
+0xeebfe000 corresponde a %esp: Apunta al inicio del user stack.
+Inicialmente se configuró en env_alloc: e->env_tf.tf_esp = USTACKTOP.
+
+0x0000000023 corresponde al selector %ss: Ídem %es.
+
+8. Continuar hasta la instrucción iret, sin llegar a ejecutarla. Mostrar en este punto, de nuevo, las cinco primeras líneas de info registers en el monitor de QEMU. Explicar los cambios producidos.
+(qemu) info registers
+EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
+ESI=00000000 EDI=00000000 EBP=00000000 ESP=f01c0030
+EIP=f01033b2 EFL=00000096 [--S-AP-] CPL=0 II=0 A20=1 SMM=0 HLT=0
+ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
+CS =0008 00000000 ffffffff 00cf9a00 DPL=0 CS32 [-R-]
+
+Los registros de propósito general (desde EAX hasta EBP) se recuperaron, por ello valen  0x00000000.
+
+ESP=f01c0030 : dentro de esta dirección se guarda el %eip a recuperar. En el punto anterior pudimos ver que a lo que se está apuntando es a 0x00800020 (0xf01e6030:    0x00800020 ).
+
+ES=... DPL=3 : se pasa de tener DPL=0 a DPL=3 porque se recuperó %es.
+ES=0023 00000000 ffffffff 00cff300 : ES comenzaba con 0010 porque en la función env_init_percpu se cargó el valor GD_KD (kernel data). El valor actual de ES (0023...) se da por GD_UD|3 (3: valor del %es recuperado); donde GD_UD es el global descriptor number para user data y 3 es el user mode.
+
+9. Ejecutar la instrucción iret. En ese momento se ha realizado el cambio de contexto y los símbolos del kernel ya no son válidos.
+imprimir el valor del contador de programa con p $pc o p $eip
+cargar los símbolos de hello con symbol-file obj/user/hello
+volver a imprimir el valor del contador de programa
+Mostrar una última vez la salida de info registers en QEMU, y explicar los cambios producidos.
+
+(gdb) si
+=> 0x800020:    add    %al,(%eax)
+0x00800020 in ?? ()
+(gdb) p $pc
+$3 = (void (*)()) 0x800020
+(gdb) symbol-file obj/user/hello
+¿Cargar una tabla de símbolos nueva desde «obj/user/hello»? (y o n) y
+Leyendo símbolos desde obj/user/hello...hecho.
+(gdb) p $pc
+$4 = (void (*)()) 0x800020 <_start>
+
+(qemu) info registers
+EAX=00000000 EBX=00000000 ECX=00000000 EDX=00000000
+ESI=00000000 EDI=00000000 EBP=00000000 ESP=eebfe000
+EIP=00800020 EFL=00000002 [-------] CPL=3 II=0 A20=1 SMM=0 HLT=0
+ES =0023 00000000 ffffffff 00cff300 DPL=3 DS   [-WA]
+CS =001b 00000000 ffffffff 00cffa00 DPL=3 CS32 [-R-]
+
+EIP=00800020 : Como ya se ejecutó iret se recuperó el instruction pointer, ahora vale lo que era el entry point asignado en load_icode. 
+CPL=3 : porque se realizó un context switch.
+CS=... DPL=3 :Se recuperó %cs.
+ESP=eebfe000 :Se pasó de un nivel de mayor privilegio (0) a uno de menor privilegio (3), iret también hizo pop de %esp y %ss.
+CS =001b 00000000 ffffffff 00cffa00 : CS comenzaba con 0008 porque en la función env_init_percpu se cargó el valor GD_KT (kernel text). El valor actual de CS (001b…) es debido al valor GD_UT | 3 (valor del %cs recuperado); donde GD_UT corresponde a user text.
+
+10. Poner un breakpoint temporal (tbreak, se aplica una sola vez) en la función syscall() y explicar qué ocurre justo tras ejecutar la instrucción int $0x30. Usar, de ser necesario, el monitor de QEMU.
