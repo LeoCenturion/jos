@@ -279,13 +279,13 @@ region_alloc(struct Env *e, void *va, size_t len)
 	// (But only if you need it for load_icode.)
 	void *base = ROUNDDOWN(va, PGSIZE);
 	void *bound = ROUNDUP(va + len, PGSIZE);
-	size_t size = (size_t) ROUNDUP(len, PGSIZE);
+	size_t size = (size_t) ROUNDUP(len, PGSIZE)/PGSIZE;
 	struct PageInfo *p;
 
-	for (size_t i = 0; i < size; i += PGSIZE) {
+	for (void* addr = base; addr < bound; addr += PGSIZE) {
 		p = page_alloc(PTE_U + PTE_W);
 		int err = page_insert(
-		        e->env_pgdir, p, (void *) (base + i), PTE_U + PTE_W);
+		        e->env_pgdir, p, (void *) (addr), PTE_U + PTE_W);
 		if (err)
 			panic("region alloc error");
 	}
