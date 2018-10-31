@@ -119,6 +119,7 @@ env_init(void)
 
 
 	for (i = NENV - 1; i >= 0; i--) {
+		envs[i].env_status = ENV_FREE;
 		envs[i].env_id = 0;
 		envs[i].env_link = env_free_list;
 		env_free_list = &(envs[i]);
@@ -350,6 +351,8 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+
+/*
 	uint8_t *ph_first = binary + *(binary + 0x1c);  // 0x1c: e_phoff
 	size_t phnum = *(binary + 0x30);
 	size_t phentsize = *(binary + 0x2a);
@@ -379,8 +382,46 @@ load_icode(struct Env *e, uint8_t *binary)
 	// at virtual address USTACKTOP - PGSIZE.
 	
 	// LAB 3: Your code here.
+	region_alloc(e, (void *) (USTACKTOP - PGSIZE), PGSIZE);
 
+
+*/
+
+	struct Elf *bin = (struct Elf *) binary;
+	// is this a valid ELF?
+	if (bin->e_magic != ELF_MAGIC)
+		panic("load_icode: 'binary' is not a valid ELF binary\n");
 	
+	struct Proghdr *progHeader, *eph;
+
+	progHeader = (struct Proghdr *) (binary + bin->e_phoff);
+	eph = progHeader + bin->e_phnum;
+
+	lcr3(PADDR(e->env_pgdir));
+	
+	for (; progHeader < eph; progHeader++){
+		if (progHeader->p_type == ELF_PROG_LOAD) {
+			//The ELF header should have ph->p_filesz <= ph->p_memsz
+			if (progHeader->p_filesz > progHeader->p_memsz)
+				panic("load_icode: ph->p_filesz > ph->p_memsz\n");
+
+			if (progHeader->p_va + progHeader->p_memsz < USTACKTOP) {
+				region_alloc(e, (void *) progHeader->p_va, progHeader->p_memsz);
+				memcpy((void *) progHeader->p_va, binary + progHeader->p_offset, progHeader->p_filesz);
+				memset((void *) progHeader->p_va, 0, progHeader->p_memsz);
+			}
+		}
+	}
+	
+	lcr3(PADDR(kern_pgdir));
+	
+	e->env_tf.tf_eip = bin->e_entry;
+	
+	// Now map one page for the program's initial stack
+	// at virtual address USTACKTOP - PGSIZE.
+
+	// LAB 3: Your code here.
+	region_alloc(e, (void *) (USTACKTOP - PGSIZE), PGSIZE);
 }
 
 //
@@ -481,8 +522,8 @@ env_destroy(struct Env *e)
 void
 env_pop_tf(struct Trapframe *tf)
 {
-	cprintf("sizeof tf: %d \n",sizeof(struct Trapframe));
-	cprintf("sizeof int: %d \n",sizeof(int));
+	//cprintf("sizeof tf: %d \n",sizeof(struct Trapframe));
+	//cprintf("sizeof int: %d \n",sizeof(int));
 	asm volatile("\tmovl %0,%%esp\n"
 	             "\tpopal\n"
 	             "\tpopl %%es\n"
