@@ -68,6 +68,8 @@
 	TRAPHANDLER_NOEC(int18, T_MCHK);
 	TRAPHANDLER_NOEC(int19, T_SIMDERR);
 
+	TRAPHANDLER_NOEC(int48, T_SYSCALL);
+
 
 /*
  * Lab 3: Your code here for _alltraps
