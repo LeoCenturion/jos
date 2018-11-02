@@ -75,7 +75,7 @@ trap_init(void)
 	SETGATE(idt[T_NMI],0,GD_KT, int2, 0);
 	
 	void int3();
-	SETGATE(idt[T_BRKPT],0,GD_KT, int3, 0);
+	SETGATE(idt[T_BRKPT],0,GD_KT, int3, 3);
 	
 	void int4();
 	SETGATE(idt[T_OFLOW],0,GD_KT, int4, 0);
