@@ -247,17 +247,11 @@ kern_idt
 TRAPHANDLER se usa para las excepciones/interrupciones para las cuales el CPU automáticamente pushea un código de error, de lo contrario, se debe utilizar TRAPHANDLER_NOEC. Esta última opción pushea 0 en lugar del código de error.
 Si se usara sólamente la primera, los ‘trap frame’ tendrían distintos formatos. Los que pushean el código de error, tendría una línea más que los que no.
 
+
 2) ¿Qué cambia, en la invocación de handlers, el segundo parámetro (istrap) de la macro SETGATE? ¿Por qué se elegiría un comportamiento u otro durante un syscall?
 El parámetro ‘istrap’ indica si es una excepción (1) o una interrupción (0).
-Si se elige que es una interrupción, el IF (interrupt-enable flag) se resetea...
-//HAY QUE PONER ESTO:
-//"The difference between
-    //   an interrupt gate and a trap gate is in the effect on IF (the
-    //   interrupt-enable flag). An interrupt that vectors through an
-    //   interrupt gate resets IF, thereby preventing other interrupts from
-    //   interfering with the current interrupt handler. A subsequent IRET
-    //   instruction restores IF to the value in the EFLAGS image on the
-    //   stack. An interrupt through a trap gate does not change IF."
+Si se elige que es una interrupción, el IF (interrupt-enable flag) se resetea, evitando que otras interrupciones interfieran con el handler de la interrupción actual. Luego, a través de la instrucción IRET se restablece el flag IF con el valor que hay en EFLAGS que se encuentra en el stack. En cambio, una excepción no cambia el IF.
+
 
 3) Leer user/softint.c y ejecutarlo con make run-softint-nox. ¿Qué excepción se genera? Si hay diferencias con la que invoca el programa… ¿por qué mecanismo ocurre eso, y por qué razones?
 
@@ -301,5 +295,5 @@ Welcome to the JOS kernel monitor!
 Type 'help' for a list of commands.
 K>
 
-//VER INTERRUPCION 14 QUÉ ES (es interrupción por page fault) Y QUÉ HACE
-
+El programa softint invoca la interrupción número 14 (Page Fault). Esta interrupción fue seteada de modo tal que los usuarios no puedan invocarla, entonces, como en softint quien invoca a la interrupción 14 es un proceso de usuario, es decir que el programa intenta violar su nivel de privilegio, se genera la interrupción número 13 (General Protection)
+Según [IA32-3A], cuando se genera una excepción o interrupción con la instrucción int n, el procesador verifica el DPL (Descriptor Privilege Level) del interrupt/trap gate y se controla que el CPL (Current Privilege Level) sea menor o igual al DPL observado. Esta restricción evita que los procesos en 'user mode' usen una interrupción de software para acceder a ciertos exception handlers de mayor privilegio (menor nivel numérico), como el page fault handler.
