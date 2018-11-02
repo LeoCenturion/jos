@@ -213,6 +213,8 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 	if(tf->tf_trapno == T_PGFLT){
+		if (tf->tf_cs == 0)
+			panic("page fault, ring=0");
 		page_fault_handler(tf);
 		return;
 	}
