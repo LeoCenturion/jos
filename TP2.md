@@ -237,3 +237,69 @@ of GDB.  Attempting to continue with the default i8086 settings.
 Se asume que la arquitectura objetivo es i8086
 [f000:e05b]    0xfe05b:    cmpl   $0x0,%cs:0x6574
 0x0000e05b in ?? ()
+
+
+//FALTA EXPLICACIÓN
+
+kern_idt
+---------
+1) ¿Cómo decidir si usar TRAPHANDLER o TRAPHANDLER_NOEC? ¿Qué pasaría si se usara solamente la primera?
+TRAPHANDLER se usa para las excepciones/interrupciones para las cuales el CPU automáticamente pushea un código de error, de lo contrario, se debe utilizar TRAPHANDLER_NOEC. Esta última opción pushea 0 en lugar del código de error.
+Si se usara sólamente la primera, los ‘trap frame’ tendrían distintos formatos. Los que pushean el código de error, tendría una línea más que los que no.
+
+2) ¿Qué cambia, en la invocación de handlers, el segundo parámetro (istrap) de la macro SETGATE? ¿Por qué se elegiría un comportamiento u otro durante un syscall?
+El parámetro ‘istrap’ indica si es una excepción (1) o una interrupción (0).
+Si se elige que es una interrupción, el IF (interrupt-enable flag) se resetea...
+//HAY QUE PONER ESTO:
+//"The difference between
+    //   an interrupt gate and a trap gate is in the effect on IF (the
+    //   interrupt-enable flag). An interrupt that vectors through an
+    //   interrupt gate resets IF, thereby preventing other interrupts from
+    //   interfering with the current interrupt handler. A subsequent IRET
+    //   instruction restores IF to the value in the EFLAGS image on the
+    //   stack. An interrupt through a trap gate does not change IF."
+
+3) Leer user/softint.c y ejecutarlo con make run-softint-nox. ¿Qué excepción se genera? Si hay diferencias con la que invoca el programa… ¿por qué mecanismo ocurre eso, y por qué razones?
+
+$ make run-softint-nox
+make[1]: se ingresa al directorio «/home/flor/Escritorio/SisOp/TP1/jos»
++ cc kern/init.c
++ ld obj/kern/kernel
++ mk obj/kern/kernel.img
+make[1]: se sale del directorio «/home/flor/Escritorio/SisOp/TP1/jos»
+qemu-system-i386 -nographic -drive file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp:127.0.0.1:26000 -D qemu.log  -d guest_errors
+6828 decimal is 15254 octal!
+Physical memory: 131072K available, base = 640K, extended = 130432K
+test
+check_page_alloc() succeeded!
+check_page() succeeded!
+check_kern_pgdir() succeeded!
+check_page_installed_pgdir() succeeded!
+[00000000] new env 00001000
+Incoming TRAP frame at 0xefffffbc
+TRAP frame at 0xf01c0000
+  edi  0x00000000
+  esi  0x00000000
+  ebp  0xeebfdfd0
+  oesp 0xefffffdc
+  ebx  0x00000000
+  edx  0x00000000
+  ecx  0x00000000
+  eax  0x00000000
+  es   0x----0023
+  ds   0x----0023
+  trap 0x0000000d General Protection
+  err  0x00000072
+  eip  0x00800036
+  cs   0x----001b
+  flag 0x00000046
+  esp  0xeebfdfd0
+  ss   0x----0023
+[00001000] free env 00001000
+Destroyed the only environment - nothing more to do!
+Welcome to the JOS kernel monitor!
+Type 'help' for a list of commands.
+K>
+
+//VER INTERRUPCION 14 QUÉ ES (es interrupción por page fault) Y QUÉ HACE
+
