@@ -46,10 +46,28 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
-
-
+handler:
+	TRAPHANDLER(handler,0)
+	call trap
+handler_noec:
+	TRAPHANDLER(handler_noec,0)
+	
 
 /*
  * Lab 3: Your code here for _alltraps
- */
+	
+1 push values to make the stack look like a struct Trapframe 
+2 load GD_KD into %ds and %es 
+3 pushl %esp to pass a pointer to the Trapframe as an argument to trap() 
+4 call trap (can trap ever return?) 
 
+Consider using the pushal instruction; it fits nicely with the layout of the struct
+Trapframe. 
+*/
+_alltraps:
+	pushal
+	mov $GD_KD, %ax
+	mov %ax, %ds
+	mov %ax, %es
+	push %esp
+	call trap
