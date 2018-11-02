@@ -618,12 +618,12 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	for(uint32_t direccion = inicio; direccion<fin; direccion+=PGSIZE){
 		pte_t * pte = pgdir_walk(env->env_pgdir, (const void *) va, 0);
 		if(!pte || direccion >= ULIM || !(*pte & (perm|PTE_P)) ){
-			/*if ((uint32_t)va > direccion){
+			if ((uint32_t)va > direccion){
 				user_mem_check_addr = (uint32_t) va;
 			}
-			else{*/
+			else{
 				user_mem_check_addr = direccion;
-			//}
+			}
 			return -E_FAULT;
 		}
 		//the address is below ULIM
