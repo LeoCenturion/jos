@@ -2,6 +2,7 @@
 
 #include <inc/mmu.h>
 #include <inc/memlayout.h>
+#include <inc/trap.h>
 
 # Shift Right Logical 
 #define SRL(val, shamt)		(((val) >> (shamt)) & ~(-1 << (32 - (shamt))))
@@ -55,7 +56,12 @@ entry:
 
 	# Load the physical address of entry_pgdir into cr3.  entry_pgdir
 	# is defined in entrypgdir.c.
+	movl 	%cr4, %eax
+	orl	$CR4_PSE, %eax
+	movl	%eax, %cr4
+
 	movl	$(RELOC(entry_pgdir)), %eax
+	orl	$PTE_PS, %eax
 	movl	%eax, %cr3
 	# Turn on paging.
 	movl	%cr0, %eax
