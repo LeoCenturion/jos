@@ -64,7 +64,73 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+	//SETGATE(gate, istrap, sel, off, dpl)
+	void int0();
+	SETGATE(idt[T_DIVIDE],0,GD_KT, int0, 0);
+	
+	void int1();
+	SETGATE(idt[T_DEBUG],0,GD_KT, int1, 0);
+	
+	void int2();
+	SETGATE(idt[T_NMI],0,GD_KT, int2, 0);
+	
+	void int3();
+	SETGATE(idt[T_BRKPT],0,GD_KT, int3, 3);
+	
+	void int4();
+	SETGATE(idt[T_OFLOW],0,GD_KT, int4, 0);
+	
+	void int5();
+	SETGATE(idt[T_BOUND],0,GD_KT, int5, 0);
+	
+	void int6();
+	SETGATE(idt[T_ILLOP],0,GD_KT, int6, 0);
+	
+	void int7();
+	SETGATE(idt[T_DEVICE],0,GD_KT, int7, 0);
+	
+	void int8();
+	SETGATE(idt[T_DBLFLT],0,GD_KT, int8, 0);
 
+//	EN INC/TRAP.H ESTA COMENTADO
+//	void int9();
+//	SETGATE(idt[T_COPROC],0,GD_KT, int9, 0);
+	
+	void int10();
+	SETGATE(idt[T_TSS],0,GD_KT, int10, 0);
+	
+	void int11();
+	SETGATE(idt[T_SEGNP],0,GD_KT, int11, 0);
+	
+	void int12();
+	SETGATE(idt[T_STACK],0,GD_KT, int12, 0);
+	
+	void int13();
+	SETGATE(idt[T_GPFLT],0,GD_KT, int13, 0);
+	
+	void int14();
+	SETGATE(idt[T_PGFLT],0,GD_KT, int14, 0);
+
+//	EN INC/TRAP.H ESTA COMENTADO	
+//	void int15();
+//	SETGATE(idt[T_RES],0,GD_KT, int15, 0);
+	
+	void int16();
+	SETGATE(idt[T_FPERR],0,GD_KT, int16, 0);
+	
+	void int17();
+	SETGATE(idt[T_ALIGN],0,GD_KT, int17, 0);
+	
+	void int18();
+	SETGATE(idt[T_MCHK],0,GD_KT, int18, 0);
+	
+	void int19();
+	SETGATE(idt[T_SIMDERR],0,GD_KT, int19, 0);
+
+
+	void int48();
+	SETGATE(idt[T_SYSCALL],0,GD_KT, int48, 3);
+	
 	// Per-CPU setup
 	trap_init_percpu();
 }
@@ -142,14 +208,28 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-
-	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
+	switch (tf->tf_trapno) {
+		case T_BRKPT:
+			monitor(tf);
+			return;
+		case T_PGFLT:
+			if (tf->tf_cs == 0)
+			panic("page fault, ring=0");
+			page_fault_handler(tf);
 		return;
+		case T_SYSCALL:
+			tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+			return;
+
+	default:
+		// Unexpected trap: The user process or the kernel has a bug.
+		print_trapframe(tf);
+		if (tf->tf_cs == GD_KT)
+			panic("unhandled trap in kernel");
+		else {
+			env_destroy(curenv);
+			return;
+		}
 	}
 }
 
