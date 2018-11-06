@@ -298,6 +298,15 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	for(int i = 0; i < NCPU; i++){
+		boot_map_region(kern_pgdir,
+				KSTACKTOP -i*(KSTKSIZE + KSTKGAP),
+				KSTKSIZE,
+				percpu_kstacks[i],
+				PTE_W | PTE_R);
+
+	}
+
 }
 
 // --------------------------------------------------------------
@@ -318,7 +327,7 @@ page_init(void)
 	// LAB 4:
 	// Change your code to mark the physical page at MPENTRY_PADDR
 	// as in use
-
+	
 	// The example code here marks all physical pages as free.
 	// However this is not truly the case.  What memory is free?
 	//  1) Mark physical page 0 as in use.
@@ -349,29 +358,17 @@ page_init(void)
 		    (addr < (physaddr_t)(PADDR(boot_alloc(0))))) {
 			continue;
 		}
+		if (addr == MPENTRY_PADDR)
+			continue;
 
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &(pages[i]);
 		// cprintf("%p\n",page_free_list);
 	}
-
-	/*
-	physiaddr_t addr = 0
-	//pasar end_bootaloc a mem fisica
-	for(i=0; i<npages, i++){
-		//addr = i * PGSIZE;
-		if(addr >= end_bootalloc || addr<IOPHYSMEM){
+	_Static_assert(MPTENTRY_PADDR % PGSIZE == 0),
+		"MPENTRY_PADDR is not page-aligned");
 	
-		}
-	}
-	addr+=PGSIZE
-	*/
-
-
-
-	// pages[1].pp_link = &pages[npages-1];
-
 }
 
 //
@@ -674,7 +671,16 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	size_t rusz = ROUNDUP( size,PGSIZE);
+	if( pa + rusz > MMIOLIM )
+		panic( "MMIOLIM overflow" );
+	
+	static char *nextfree;
+	char *oldnextfree = nextfree;
+	char *va = boot_alloc(rusz);
+	nextfree = oldnextfree;
+	
+
 }
 
 static uintptr_t user_mem_check_addr;
