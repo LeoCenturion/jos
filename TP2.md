@@ -238,8 +238,7 @@ Se asume que la arquitectura objetivo es i8086
 [f000:e05b]    0xfe05b:    cmpl   $0x0,%cs:0x6574
 0x0000e05b in ?? ()
 
-
-//FALTA EXPLICACIÓN
+El programa invoca a una función syscall que no está implementada, por ello ejecuta instrucciones que no tienen coherencia con lo que se espera que haga el programa.
 
 kern_idt
 ---------
@@ -297,3 +296,18 @@ K>
 
 El programa softint invoca la interrupción número 14 (Page Fault). Esta interrupción fue seteada de modo tal que los usuarios no puedan invocarla, entonces, como en softint quien invoca a la interrupción 14 es un proceso de usuario, es decir que el programa intenta violar su nivel de privilegio, se genera la interrupción número 13 (General Protection)
 Según [IA32-3A], cuando se genera una excepción o interrupción con la instrucción int n, el procesador verifica el DPL (Descriptor Privilege Level) del interrupt/trap gate y se controla que el CPL (Current Privilege Level) sea menor o igual al DPL observado. Esta restricción evita que los procesos en 'user mode' usen una interrupción de software para acceder a ciertos exception handlers de mayor privilegio (menor nivel numérico), como el page fault handler.
+
+
+user_evilhello
+--------------
+
+1) ¿En qué se diferencia el código de la versión en evilhello.c mostrada arriba?
+
+2)¿En qué cambia el comportamiento durante la ejecución?
+2.a)¿Por qué?
+2.b)¿Cuál es el mecanismo?
+
+En evilhello se llama a la función sys_cputs, pasándole una dirección de memoria del kernel, eso se puede realizar ya que cuando se realiza una syscall, se cambia de nivel, a modo kernel.
+En cambio, user_evilhello, es el usuario quien intenta acceder a una memoria correspondiende al kernel y luego imprimir lo que obtuvo de la memoria.
+
+No cambia el comportamiento entre ambos programas ya que ambos tienen una lógia equivalente. 
