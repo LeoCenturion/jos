@@ -62,8 +62,16 @@ start32:
 
 	# Set up initial page table. We cannot use kern_pgdir yet because
 	# we are still running at a low EIP.
-	movl    $(RELOC(entry_pgdir)), %eax
-	movl    %eax, %cr3
+	
+	
+	movl 	%cr4, %eax
+	orl	$CR4_PSE, %eax
+	movl	%eax, %cr4
+	
+	movl	$(RELOC(entry_pgdir)), %eax
+	orl	$PTE_PS, %eax
+	movl	%eax, %cr3
+	
 	# Turn on paging.
 	movl    %cr0, %eax
 	orl     $(CR0_PE|CR0_PG|CR0_WP), %eax

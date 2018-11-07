@@ -300,11 +300,10 @@ mem_init_mp(void)
 	// LAB 4: Your code here:
 	for(int i = 0; i < NCPU; i++){
 		boot_map_region(kern_pgdir,
-				KSTACKTOP -i*(KSTKSIZE + KSTKGAP),
+				KSTACKTOP -(i)*(KSTKSIZE + KSTKGAP) - KSTKSIZE,
 				KSTKSIZE,
-				percpu_kstacks[i],
-				PTE_W | PTE_R);
-
+				(physaddr_t)percpu_kstacks[i],
+				PTE_W);
 	}
 
 }
@@ -366,7 +365,7 @@ page_init(void)
 		page_free_list = &(pages[i]);
 		// cprintf("%p\n",page_free_list);
 	}
-	_Static_assert(MPTENTRY_PADDR % PGSIZE == 0),
+	_Static_assert(MPENTRY_PADDR % PGSIZE == 0,
 		"MPENTRY_PADDR is not page-aligned");
 	
 }
@@ -486,6 +485,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 // Map [va, va+size) of virtual address space to physical [pa, pa+size)
 // in the page table rooted at pgdir.  Size is a multiple of PGSIZE, and
 // va and pa are both page-aligned.
+
 // Use permission bits perm|PTE_P for the entries.
 //
 // This function is only intended to set up the ``static'' mappings
@@ -671,15 +671,18 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	size_t rusz = ROUNDUP( size,PGSIZE);
-	if( pa + rusz > MMIOLIM )
-		panic( "MMIOLIM overflow" );
+	void* va = (void *)base;
+	base += size;
+	base = ROUNDUP(base, PGSIZE);
+	if(base > MMIOLIM)
+		panic("MMIOLIM overflow");
+
+	assert((uintptr_t)va%PGSIZE == 0);
+	assert((uintptr_t)pa%PGSIZE == 0);
+        boot_map_region(kern_pgdir, (uintptr_t)va, (size_t)ROUNDUP(size,PGSIZE),
+			pa, PTE_PCD|PTE_PWT|PTE_W);
 	
-	static char *nextfree;
-	char *oldnextfree = nextfree;
-	char *va = boot_alloc(rusz);
-	nextfree = oldnextfree;
-	
+	return va;
 
 }
 
