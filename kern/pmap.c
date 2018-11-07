@@ -300,10 +300,10 @@ mem_init_mp(void)
 	// LAB 4: Your code here:
 	for(int i = 0; i < NCPU; i++){
 		boot_map_region(kern_pgdir,
-				KSTACKTOP -i*(KSTKSIZE + KSTKGAP),
+				KSTACKTOP - i*(KSTKSIZE + KSTKGAP) - KSTKSIZE,
 				KSTKSIZE,
-				percpu_kstacks[i],
-				PTE_W | PTE_R);
+				PADDR(percpu_kstacks[i]),
+				PTE_W);
 
 	}
 
