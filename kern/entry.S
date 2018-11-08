@@ -56,6 +56,7 @@ entry:
 
 	# Load the physical address of entry_pgdir into cr3.  entry_pgdir
 	# is defined in entrypgdir.c.
+	
 	movl 	%cr4, %eax
 	orl	$CR4_PSE, %eax
 	movl	%eax, %cr4

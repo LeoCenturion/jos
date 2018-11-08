@@ -54,6 +54,10 @@ i386_init(void)
 	// Starting non-boot CPUs
 	boot_aps();
 
+	sys_yield();
+	sys_yield();
+	sys_yield();
+
 #if defined(TEST)
 	// Don't touch -- used by grading script!
 	ENV_CREATE(TEST, ENV_TYPE_USER);
@@ -75,7 +79,7 @@ i386_init(void)
 
 	// Eliminar esta llamada una vez completada la parte 1
 	// e implementado sched_yield().
-	env_run(&envs[0]);
+//	env_run(&envs[0]);
 
 	// Schedule and run the first user environment!
 	sched_yield();
