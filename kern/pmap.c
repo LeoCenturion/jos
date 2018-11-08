@@ -232,6 +232,7 @@ mem_init(void)
 	                KSTKSIZE,
 	                PADDR(bootstack),
 	                PTE_W);
+
 	//	boot_map_region(kern_pgdir,KSTACKTOP-PTSIZE,PTSIZE-KSTKSIZE,PADDR(bootstack)+KSTKSIZE,0);
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -300,18 +301,10 @@ mem_init_mp(void)
 	// LAB 4: Your code here:
 	for(int i = 0; i < NCPU; i++){
 		boot_map_region(kern_pgdir,
-
-/*				KSTACKTOP -(i)*(KSTKSIZE + KSTKGAP) - KSTKSIZE,
+				KSTACKTOP -(i)*(KSTKSIZE + KSTKGAP) - KSTKSIZE,
 				KSTKSIZE,
-				(physaddr_t)percpu_kstacks[i],
+				percpu_kstacks[i],
 				PTE_W);
-*/
-				KSTACKTOP - i*(KSTKSIZE + KSTKGAP) - KSTKSIZE,
-				KSTKSIZE,
-				PADDR(percpu_kstacks[i]),
-				PTE_W);
-
-
 	}
 
 }
@@ -659,8 +652,9 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// beginning of the MMIO region.  Because this is static, its
 	// value will be preserved between calls to mmio_map_region
 	// (just like nextfree in boot_alloc).
-	static uintptr_t base = MMIOBASE;
-
+	static uintptr_t base;
+	if(!base)
+		base = MMIOBASE;
 	// Reserve size bytes of virtual memory starting at base and
 	// map physical pages [pa,pa+size) to virtual addresses
 	// [base,base+size).  Since this is device memory and not
@@ -679,19 +673,18 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	void* va = (void *)base;
-	base += size;
-	base = ROUNDUP(base, PGSIZE);
-	if(base > MMIOLIM)
+	if(base + ROUNDUP(size,PGSIZE) > MMIOLIM)
 		panic("MMIOLIM overflow");
 
-	assert((uintptr_t)va%PGSIZE == 0);
 	assert((uintptr_t)pa%PGSIZE == 0);
-        boot_map_region(kern_pgdir, (uintptr_t)va, (size_t)ROUNDUP(size,PGSIZE),
+        boot_map_region(kern_pgdir, (uintptr_t)base, (size_t)ROUNDUP(size,PGSIZE),
 			pa, PTE_PCD|PTE_PWT|PTE_W);
 	
-	return va;
-
+	uintptr_t va = base;
+	//base+=ROUNDUP(size,PGSIZE);
+	
+	return (void *)va;
+	
 }
 
 static uintptr_t user_mem_check_addr;
