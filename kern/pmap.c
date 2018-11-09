@@ -233,7 +233,7 @@ mem_init(void)
 	                PADDR(bootstack),
 	                PTE_W);
 
-	//	boot_map_region(kern_pgdir,KSTACKTOP-PTSIZE,PTSIZE-KSTKSIZE,PADDR(bootstack)+KSTKSIZE,0);
+	
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to
@@ -243,7 +243,7 @@ mem_init(void)
 	// Permissions: kernel RW, user NONE
 
 	// Your code goes here:0x10000000
-//	boot_map_region(kern_pgdir, KERNBASE, 0x10000000, 0x0, PTE_W);
+	boot_map_region(kern_pgdir, KERNBASE, 0x10000000, 0x0, PTE_W);
 	// Check that the initial page directory has been set up correctnly.
 
 	// Your code goes here:
@@ -303,7 +303,7 @@ mem_init_mp(void)
 		boot_map_region(kern_pgdir,
 				KSTACKTOP -(i)*(KSTKSIZE + KSTKGAP) - KSTKSIZE,
 				KSTKSIZE,
-				percpu_kstacks[i],
+				PADDR(&percpu_kstacks[i]),
 				PTE_W);
 	}
 
@@ -679,12 +679,11 @@ mmio_map_region(physaddr_t pa, size_t size)
 	assert((uintptr_t)pa%PGSIZE == 0);
         boot_map_region(kern_pgdir, (uintptr_t)base, (size_t)ROUNDUP(size,PGSIZE),
 			pa, PTE_PCD|PTE_PWT|PTE_W);
-	
+
 	uintptr_t va = base;
-	//base+=ROUNDUP(size,PGSIZE);
-	
+	base+=ROUNDUP(size,PGSIZE);
+
 	return (void *)va;
-	
 }
 
 static uintptr_t user_mem_check_addr;
