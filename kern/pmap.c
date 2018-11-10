@@ -233,7 +233,7 @@ mem_init(void)
 	                PADDR(bootstack),
 	                PTE_W);
 
-	
+
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
 	// Ie.  the VA range [KERNBASE, 2^32) should map to

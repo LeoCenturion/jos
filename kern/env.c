@@ -1,5 +1,3 @@
-
-
 /* See COPYRIGHT for copyright information. */
 
 #include <inc/x86.h>
@@ -375,8 +373,8 @@ load_icode(struct Env *e, uint8_t *binary)
 	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
 	ph_num = ELFHDR->e_phnum;
 
-	lcr3(PADDR(e->env_pgdir));			
-							
+	lcr3(PADDR(e->env_pgdir));
+
 
 	for (int i = 0; i < ph_num; i++) {
 		if (ph[i].p_type == ELF_PROG_LOAD){
@@ -553,7 +551,7 @@ env_run(struct Env *e)
 	if(curenv != e){
 		if((curenv != NULL) && (curenv->env_status == ENV_RUNNING))
 		   curenv->env_status = ENV_RUNNABLE;
-			
+
 		curenv = e;
 		curenv->env_status = ENV_RUNNING;
 		curenv->env_runs++;
