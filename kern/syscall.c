@@ -330,6 +330,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 // This function only returns on error, but the system call will eventually
 // return 0 on success.
 // Return < 0 on error.  Errors are:
+
 //	-E_INVAL if dstva < UTOP but dstva is not page-aligned.
 static int
 sys_ipc_recv(void *dstva)
@@ -357,6 +358,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_getenvid();
 		case SYS_env_destroy:
 			return sys_env_destroy(a1);
+	case SYS_yield:
+		 sys_yield();
+		 return 0;
+		
 	default:
 		return -E_INVAL;
 	}
