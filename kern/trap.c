@@ -250,6 +250,10 @@ trap_dispatch(struct Trapframe *tf)
 		if (tf->tf_cs == 0)
 			panic("page fault, ring=0");
 		page_fault_handler(tf);
+	case (IRQ_OFFSET + IRQ_TIMER):
+		lapic_eoi();
+		sched_yield();
+		return;
 	case T_SYSCALL:
 		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
 		return;
@@ -287,7 +291,7 @@ trap_dispatch(struct Trapframe *tf)
 		env_destroy(curenv);
 		return;
 	}
-	
+
 }
 
 void
@@ -300,6 +304,7 @@ trap(struct Trapframe *tf)
 	// Halt the CPU if some other CPU has called panic()
 	extern char *panicstr;
 	if (panicstr)
+
 		asm volatile("hlt");
 
 	// Re-acquire the big kernel lock if we were halted in

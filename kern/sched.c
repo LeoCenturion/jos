@@ -30,7 +30,7 @@ sched_yield(void)
 
 	// LAB 4: Your code here.
 	// sched_halt never returns
-	
+
 	if(!curenv){ //si no hay env corriendo, corre el primero valido que encuentre
 		for(int k = 0; k < NENV; k++){
 			if( envs[k].env_status == ENV_RUNNABLE ){
