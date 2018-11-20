@@ -132,6 +132,7 @@ mpsearch(void)
 static struct mpconf *
 mpconfig(struct mp **pmp)
 {
+
 	struct mpconf *conf;
 	struct mp *mp;
 
@@ -159,6 +160,7 @@ mpconfig(struct mp **pmp)
 		return NULL;
 	}
 	*pmp = mp;
+
 	return conf;
 }
 
