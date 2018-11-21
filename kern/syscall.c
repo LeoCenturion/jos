@@ -119,8 +119,7 @@ sys_env_set_status(envid_t envid, int status)
 		return -E_INVAL;
 
 	struct Env * e;
-	int err = envid2env(envid,&e,1);
-	if (err<0)
+	if (envid2env(envid,&e,1)<0)
 		return -E_BAD_ENV;
 
 	e->env_status = status;
@@ -177,8 +176,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_INVAL;
 
 	struct Env* e;
-	int err = envid2env(envid,&e,1);
-	if (err<0)
+	if (envid2env(envid,&e,1)<0)
 		return -E_BAD_ENV;
 
 	struct PageInfo *pageI = page_alloc(ALLOC_ZERO);
@@ -189,7 +187,9 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		page_free(pageI);
 		return -E_NO_MEM;
 	}
+	return 0; 
 }
+
 
 // Map the page of memory at 'srcva' in srcenvid's address space
 // at 'dstva' in dstenvid's address space with permission 'perm'.
