@@ -169,7 +169,8 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 
 	// LAB 4: Your code here.
 	//panic("sys_page_alloc not implemented");
-	if((uint32_t)va >= UTOP || ((uint32_t)va%PGSIZE!=0)) //////////////////////////////////////////////////////////////VER LO DE LA ALINEACION ///////////////////////////////////////////////////
+	cprintf("sys_page_alloc\n");
+	if((uint32_t)va >= UTOP || ((uint32_t)va%PGSIZE!=0)) 
 		return -E_INVAL;
 
 	if(!(perm&(PTE_U | PTE_P)) || (perm&(~PTE_SYSCALL)) )
@@ -219,6 +220,7 @@ sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int p
 
 	// LAB 4: Your code here.
 	//panic("sys_page_map not implemented");
+	cprintf("sys_page_map\n");
 	struct Env * srcEnv;
 	struct Env * dstEnv;
 	if((envid2env(srcenvid, &srcEnv, 1)<0) || (envid2env(dstenvid, &dstEnv, 1)<0) )
@@ -264,6 +266,7 @@ sys_page_unmap(envid_t envid, void *va)
 
 	// LAB 4: Your code here.
 	//panic("sys_page_unmap not implemented");
+	cprintf("sys_page_unmap\n");
 	if(((uint32_t)va >= UTOP) || !((uint32_t)va%PGSIZE==0))
 		return -E_INVAL;
 
@@ -349,18 +352,30 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// LAB 3: Your code here.
 
 	switch (syscallno) {
-		case SYS_cputs:
-			sys_cputs((const char *)a1, a2);
-			return 0;
-		case SYS_cgetc:
-			return sys_cgetc();
-		case SYS_getenvid:
-			return sys_getenvid();
-		case SYS_env_destroy:
-			return sys_env_destroy(a1);
+	case SYS_cputs:
+		sys_cputs((const char *)a1, a2);
+		return 0;
+	case SYS_cgetc:
+		return sys_cgetc();
+	case SYS_getenvid:
+		return sys_getenvid();
+	case SYS_env_destroy:
+		return sys_env_destroy(a1);
 	case SYS_yield:
 		 sys_yield();
 		 return 0;
+	case SYS_exofork:
+		return sys_exofork();
+	case SYS_env_set_status:
+		return sys_env_set_status((envid_t)a1,a2);
+	case SYS_page_alloc:
+		return sys_page_alloc((envid_t)a1,(void*)a2,a3);
+	case SYS_page_map:
+		return sys_page_map((envid_t)a1,(void*)a2,(envid_t)a3,
+				    (void *) a4,a5);
+	case SYS_page_unmap:
+		return sys_page_unmap((envid_t)a1,(void *)a2);
+		
 		
 	default:
 		return -E_INVAL;
