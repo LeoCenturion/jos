@@ -96,12 +96,12 @@ fork_v0(void)
 		return 0;
 	}
 
-	for (addr = 0; addr < (uint8_t)UTOP; addr += PGSIZE){
+	for (addr = 0; addr < (uint8_t*)UTOP; addr += PGSIZE){
 		if(uvpd[PDX(addr)]&PTE_P){
 			pte_t pte = uvpt[PGNUM(addr)];
 			if(pte&PTE_P){
 				dup_or_share(envid, addr, PGOFF(pte));
-			}
+			}			
 		}
 	}
 
