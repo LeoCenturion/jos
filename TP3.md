@@ -158,3 +158,52 @@ boot_aps () at kern/init.c:116
 
    * ¿Se detiene en algún momento la ejecución si se pone un breakpoint en mpentry_start? ¿Por qué? 
     No se detiene núnca la ejecución 
+
+
+*PARTE 2
+*Tarea: envid2env
+1) Responder qué ocurre:
+en JOS, si un proceso llama a sys_env_destroy(0)
+en Linux, si un proceso llama a kill(0, 9)
+E ídem para:
+JOS: sys_env_destroy(-1)
+Linux: kill(-1, 9)
+
+JOS:
+sys_env_destroy(0) → mata al enviroment actual
+sys_env_destroy(-1) → mata a todos los enviroments
+
+Linux:
+La declaración de la instrucción kill es la siguiente: int     kill(pid_t pid, int sig)
+“sig” es la señal que se envía, dentro de las señales se encuentra: SIGKILL 9 /* hard kill */.
+“pid” 
+Si “pid” es cero: 
+La señal se envía a todos los procesos cuyo grupo ID es igual al del proceso que envía la señal, y para el cual el proceso tiene permiso.
+
+Si “pid” es -1: 
+Si el usuario tiene privilegios de superusuario, la señal se envía a todos los procesos, excluyendo los procesos del sistema, el proceso con ID 1 (generalmente init (8)) y el proceso que envía la señal. 
+Si el usuario no es el superusuario, la señal se envía a todos los procesos con el mismo UID que el usuario, excluyendo el proceso que envía la señal. No se devuelve ningún error si se puede señalar algún proceso.
+
+*Tarea: dumbfork
+1) Si, antes de llamar a dumbfork(), el proceso se reserva a sí mismo una página con sys_page_alloc() ¿se propagará una copia al proceso hijo? ¿Por qué?
+dumbfork copia los register state y el stack del proceso padre, entonces si se reserva una página, tendrá la referencia a la misma por el stack pero no podrá acceder a ella porque no tiene permiso. Es decir, el hijo no tendrá esa página porque dumbfork no copia el espacio de memoria.
+
+2) ¿Se preserva el estado de solo-lectura en las páginas copiadas? Mostrar, con código en espacio de usuario, cómo saber si una dirección de memoria es modificable por el proceso, o no. (Ayuda: usar las variables globales uvpd y/o uvpt.)
+No, no se preserva el estado de solo-lectura en las páginas copiadas, también se les pone permiso de escritura.
+Cómo saber si una dirección de memoria es modificable por el proceso, o no:
+if((uvpd[PDX(addr)]&PTE_P ) && (uvpt[PGNUM(addr)])&PTE_P)
+    la dirección addr es modificable por el proceso
+    
+3) Describir el funcionamiento de la función duppage().
+duppage() aloca una página en el espacio de direcciones del proceso hijo con dirección virtual “addr”. Luego hace que la dirección addr del hijo apunte a UTEMP del proceso actual (proceso padre), donde se copiará la página que se quiere compartir. Finalmente hace que la dirección virtual del proceso padre que apuntaba a UTEMP, ya no apunte allí.
+
+
+4) Supongamos que se añade a duppage() un argumento booleano que indica si la página debe quedar como solo-lectura en el proceso hijo:
+indicar qué llamada adicional se debería hacer si el booleano es true
+describir un algoritmo alternativo que no aumente el número de llamadas al sistema, que debe quedar en 3 (1 × alloc, 1 × map, 1 × unmap).
+
+si fuese solo de lectura, sólo se debería llamar a la función sys_page_map(). haciendo que en enviroment del nuevo proceso tenga la dirección de la página de lectura.
+
+
+5) ¿Por qué se usa ROUNDDOWN(&addr) para copiar el stack? ¿Qué es addr y por qué, si el stack crece hacia abajo, se usa ROUNDDOWN y no ROUNDUP?
+addr es una variable local que está en el stack. Se usa ROUNDDOWN porque se quiere el principio de la página.
