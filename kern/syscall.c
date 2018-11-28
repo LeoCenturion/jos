@@ -169,7 +169,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 
 	// LAB 4: Your code here.
 	//panic("sys_page_alloc not implemented");
-	cprintf("sys_page_alloc\n");
+//	cprintf("sys_page_alloc\n");
 	if((uint32_t)va >= UTOP || ((uint32_t)va%PGSIZE!=0)) 
 		return -E_INVAL;
 
@@ -220,7 +220,7 @@ sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int p
 
 	// LAB 4: Your code here.
 	//panic("sys_page_map not implemented");
-	cprintf("sys_page_map\n");
+//	cprintf("sys_page_map\n");
 	struct Env * srcEnv;
 	struct Env * dstEnv;
 	if((envid2env(srcenvid, &srcEnv, 1)<0) || (envid2env(dstenvid, &dstEnv, 1)<0) )
@@ -266,7 +266,7 @@ sys_page_unmap(envid_t envid, void *va)
 
 	// LAB 4: Your code here.
 	//panic("sys_page_unmap not implemented");
-	cprintf("sys_page_unmap\n");
+//	cprintf("sys_page_unmap\n");
 	if(((uint32_t)va >= UTOP) || !((uint32_t)va%PGSIZE==0))
 		return -E_INVAL;
 
@@ -320,7 +320,53 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_try_send not implemented");
+
+	int err_pm = 0;
+	struct Env *target;
+	int err_env = envid2env(envid,&target,0);
+	if(err_env < 0)
+		return err_env;
+	if(target->env_ipc_recving == 0)
+		return -E_IPC_NOT_RECV;
+
+	int err_inval =((uint32_t)srcva%PGSIZE);
+	if(err_inval){
+		cprintf("not aligned , %e \n", err_inval);
+		return -E_INVAL;
+	}
+	err_inval = !(perm&(PTE_U | PTE_P));
+	if(err_inval){
+		cprintf("not present/readable , %e \n", err_inval);
+		return -E_INVAL;
+	}
+	err_inval = (perm&(~PTE_SYSCALL));
+	if(err_inval){
+		cprintf("not PTE_SYSCALL , %e \n", err_inval);
+		return -E_INVAL;
+	}
+	err_inval = (perm&PTE_W & (user_mem_check(curenv,srcva,PGSIZE,PTE_W)));
+	if(err_inval){
+		cprintf("no write perm , %e \n", err_inval);
+		return -E_INVAL;
+	}
+	err_inval = (user_mem_check(curenv,srcva,PGSIZE,PTE_P));
+	if(err_inval){
+		cprintf("not present  , %e \n", err_inval);
+		return -E_INVAL;
+	}
+	
+
+	target->env_ipc_recving = 0;
+	target->env_ipc_from = curenv->env_id;
+	target->env_ipc_value = value;
+	target->env_ipc_perm = perm;
+	target->env_status = ENV_RUNNABLE;
+			 
+	if(srcva < (void *)UTOP)
+		err_pm = sys_page_map(curenv->env_id, srcva, envid, srcva,perm);
+	if(err_pm < 0)
+		return err_pm;
+	return 0;
 }
 
 // Block until a value is ready.  Record that you want to receive
@@ -339,7 +385,16 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
-	panic("sys_ipc_recv not implemented");
+
+
+	if(dstva < (void *)UTOP){
+		if((uint32_t)dstva%PGSIZE)
+			return -E_INVAL;
+		curenv->env_ipc_dstva = dstva;
+	}
+	curenv->env_ipc_recving = 1;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	sched_yield();
 	return 0;
 }
 
@@ -375,9 +430,14 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 				    (void *) a4,a5);
 	case SYS_page_unmap:
 		return sys_page_unmap((envid_t)a1,(void *)a2);
-		
-		
+	case SYS_ipc_recv:
+		sys_ipc_recv((void *)a1);
+		return 0;
+	case SYS_ipc_try_send:
+		return sys_ipc_try_send( (envid_t) a1, (uint32_t) a2, (void *)a3, (unsigned) a4);
+
 	default:
+		cprintf("INVALID\n");
 		return -E_INVAL;
 	}
 }
