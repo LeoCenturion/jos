@@ -1,13 +1,13 @@
 * static_assert
 
-*env_return
+## env_return
     * Al terminar un proceso su función umain() ¿dónde retoma la ejecución el kernel?
  Describir la secuencia de llamadas desde que termina umain() hasta que el kernel
  dispone del proceso.
     La ejecución del kernel retorna cuando haya una interrupción, por lo tanto retornará al trapframe ...
     * ¿en qué cambia la función env_destroy() en este TP, respecto al TP anterior?
     
-*sys_yield
+## Sys_yield
 
 qemu-system-i386 -nographic -drive file=obj/kern/kernel.img,index=0,media=disk,format=raw -serial mon:stdio -gdb tcp:127.0.0.1:26000 -D qemu.log -smp 1  -d guest_errors
 6828 decimal is 15254 octal!
@@ -70,7 +70,7 @@ No runnable environments in the system!
 
 En la salida se ve que, cómo es de esperarse, después de cada iteración una instancia del  programa 'yield.c' cede el uso del procesador el cual es retomado por otra instancia del mísmo programa entonces se puede ver que primero se realizan todas las primeras iteraciones de las instancias, luego todas las segundas y así hasta terminar.
 
-* multicore init
+## multicore init
 Preguntas:
 
 1 ¿Qué código copia, y a dónde, la siguiente línea de la función boot_aps()?
@@ -160,8 +160,8 @@ boot_aps () at kern/init.c:116
     No se detiene núnca la ejecución 
 
 
-*PARTE 2
-*Tarea: envid2env
+# PARTE 2
+## Tarea: envid2env
 1) Responder qué ocurre:
 en JOS, si un proceso llama a sys_env_destroy(0)
 en Linux, si un proceso llama a kill(0, 9)
@@ -184,7 +184,7 @@ Si “pid” es -1:
 Si el usuario tiene privilegios de superusuario, la señal se envía a todos los procesos, excluyendo los procesos del sistema, el proceso con ID 1 (generalmente init (8)) y el proceso que envía la señal. 
 Si el usuario no es el superusuario, la señal se envía a todos los procesos con el mismo UID que el usuario, excluyendo el proceso que envía la señal. No se devuelve ningún error si se puede señalar algún proceso.
 
-*Tarea: dumbfork
+## Tarea: dumbfork
 1) Si, antes de llamar a dumbfork(), el proceso se reserva a sí mismo una página con sys_page_alloc() ¿se propagará una copia al proceso hijo? ¿Por qué?
 dumbfork copia los register state y el stack del proceso padre, entonces si se reserva una página, tendrá la referencia a la misma por el stack pero no podrá acceder a ella porque no tiene permiso. Es decir, el hijo no tendrá esa página porque dumbfork no copia el espacio de memoria.
 
@@ -207,3 +207,10 @@ si fuese solo de lectura, sólo se debería llamar a la función sys_page_map().
 
 5) ¿Por qué se usa ROUNDDOWN(&addr) para copiar el stack? ¿Qué es addr y por qué, si el stack crece hacia abajo, se usa ROUNDDOWN y no ROUNDUP?
 addr es una variable local que está en el stack. Se usa ROUNDDOWN porque se quiere el principio de la página.
+
+## ipc_recv
+    Un proceso podría intentar enviar el valor númerico -E_INVAL vía ipc_send(). ¿Cómo es posible distinguir si es un error, o no? En estos casos:
+    * Caso A: En este caso habría que hacer el chequeo (src != -1). Si  la expresión anterior es verdadera significa que, en efecto el valor retornado por ipc_send() es un mensaje enviado por el proceso src, de lo contrario es un error.
+    * Caso B: En este caso no hay forma de saber si se trata de un error o un mensaje.
+
+

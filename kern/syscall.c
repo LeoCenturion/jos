@@ -138,7 +138,14 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
-	panic("sys_env_set_pgfault_upcall not implemented");
+	//panic("sys_env_set_pgfault_upcall not implemented");
+	struct Env *e;
+	int err = envid2env(envid, &e, 1);
+	if (err < 0)
+		return err;
+		
+	e->env_pgfault_upcall = func;
+	return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -320,6 +327,62 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
+	int debug = 0;
+	struct Env *rcvenv;
+	int ret = envid2env(envid, &rcvenv, 0);
+	if (ret) return ret;
+	if (!rcvenv->env_ipc_recving) return -E_IPC_NOT_RECV;
+
+	if (srcva < (void*)UTOP) {
+		pte_t *pte;
+		struct PageInfo *pg = page_lookup(curenv->env_pgdir, srcva, &pte);
+
+		//按照注释的顺序进行判定
+		if (debug) {
+			cprintf("sys_ipc_try_send():srcva=%08x\n", (uintptr_t)srcva);
+		}
+		if (srcva != ROUNDDOWN(srcva, PGSIZE)) {		//srcva没有页对齐
+			if (debug) {
+				cprintf("sys_ipc_try_send():srcva is not page-alligned\n");
+			}
+			return -E_INVAL;
+		}
+		if ((*pte & perm & 7) != (perm & 7)) {  //perm应该是*pte的子集
+			if (debug) {
+				cprintf("sys_ipc_try_send():perm is wrong\n");
+			}
+			return -E_INVAL;
+		}
+		if (!pg) {			//srcva还没有映射到物理页
+			if (debug) {
+				cprintf("sys_ipc_try_send():srcva is not maped\n");
+			}
+			return -E_INVAL;
+		}
+		if ((perm & PTE_W) && !(*pte & PTE_W)) {	//写权限
+			if (debug) {
+				cprintf("sys_ipc_try_send():*pte do not have PTE_W, but perm have\n");
+			}
+			return -E_INVAL;
+		}		
+		
+		if (rcvenv->env_ipc_dstva < (void*)UTOP) {
+			ret = page_insert(rcvenv->env_pgdir, pg, rcvenv->env_ipc_dstva, perm); //共享相同的映射关系
+			if (ret) return ret;
+			rcvenv->env_ipc_perm = perm;
+		}
+	}
+	rcvenv->env_ipc_recving = 0;					//标记接受进程可再次接受信息
+	rcvenv->env_ipc_from = curenv->env_id;
+	rcvenv->env_ipc_value = value; 
+	rcvenv->env_status = ENV_RUNNABLE;
+	rcvenv->env_tf.tf_regs.reg_eax = 0;
+	return 0;
+}
+/*static int
+sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
+{
+	// LAB 4: Your code here.
 
 	int err_pm = 0;
 	struct Env *target;
@@ -344,31 +407,43 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		cprintf("not PTE_SYSCALL , %e \n", err_inval);
 		return -E_INVAL;
 	}
-	err_inval = (perm&PTE_W & (user_mem_check(curenv,srcva,PGSIZE,PTE_W)));
-	if(err_inval){
-		cprintf("no write perm , %e \n", err_inval);
-		return -E_INVAL;
-	}
-	err_inval = (user_mem_check(curenv,srcva,PGSIZE,PTE_P));
-	if(err_inval){
-		cprintf("not present  , %e \n", err_inval);
-		return -E_INVAL;
-	}
-	
 
+	if(srcva < (void *)UTOP){	
+		err_inval = (perm&PTE_W &
+			     (user_mem_check(curenv,srcva,
+					     PGSIZE,PTE_W)));
+		if(err_inval){
+			cprintf("no write perm , %e \n",
+				err_inval);
+			return -E_INVAL;
+		}
+		err_inval = (user_mem_check(curenv,srcva,
+					    PGSIZE,PTE_P));
+		if(err_inval){
+			cprintf("not present  , %e \n",
+				err_inval);
+			return -E_INVAL;
+		}
+		if (target->env_ipc_dstva < (void*)UTOP) {
+			int err_pa = sys_page_alloc(envid,srcva,perm);
+			if (err_pa) return err_pa;
+		}
+		err_pm = sys_page_map(envid,				      srcva, curenv->env_id, srcva,perm);
+	}
 	target->env_ipc_recving = 0;
 	target->env_ipc_from = curenv->env_id;
 	target->env_ipc_value = value;
 	target->env_ipc_perm = perm;
 	target->env_status = ENV_RUNNABLE;
 			 
-	if(srcva < (void *)UTOP)
-		err_pm = sys_page_map(curenv->env_id, srcva, envid, srcva,perm);
+
+	
+	cprintf("err_pm:%d \n",err_pm);
 	if(err_pm < 0)
 		return err_pm;
 	return 0;
 }
-
+*/
 // Block until a value is ready.  Record that you want to receive
 // using the env_ipc_recving and env_ipc_dstva fields of struct Env,
 // mark yourself not runnable, and then give up the CPU.
@@ -394,7 +469,8 @@ sys_ipc_recv(void *dstva)
 	}
 	curenv->env_ipc_recving = 1;
 	curenv->env_status = ENV_NOT_RUNNABLE;
-	sched_yield();
+	curenv->env_tf.tf_regs.reg_eax = 0;
+	sys_yield();
 	return 0;
 }
 
@@ -435,7 +511,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return 0;
 	case SYS_ipc_try_send:
 		return sys_ipc_try_send( (envid_t) a1, (uint32_t) a2, (void *)a3, (unsigned) a4);
-
+	case SYS_env_set_pgfault_upcall:
+		return sys_env_set_pgfault_upcall(a1, (void *) a2);
 	default:
 		cprintf("INVALID\n");
 		return -E_INVAL;

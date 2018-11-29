@@ -90,7 +90,8 @@ fork_v0(void)
 
 	envid = sys_exofork();
 	if (envid < 0)
-		panic("sys_exofork: %e", envid);
+		return envid;
+	//panic("sys_exofork: %e", envid);
 	if (envid == 0) {
 		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
