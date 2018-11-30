@@ -327,62 +327,6 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
-	int debug = 0;
-	struct Env *rcvenv;
-	int ret = envid2env(envid, &rcvenv, 0);
-	if (ret) return ret;
-	if (!rcvenv->env_ipc_recving) return -E_IPC_NOT_RECV;
-
-	if (srcva < (void*)UTOP) {
-		pte_t *pte;
-		struct PageInfo *pg = page_lookup(curenv->env_pgdir, srcva, &pte);
-
-		//按照注释的顺序进行判定
-		if (debug) {
-			cprintf("sys_ipc_try_send():srcva=%08x\n", (uintptr_t)srcva);
-		}
-		if (srcva != ROUNDDOWN(srcva, PGSIZE)) {		//srcva没有页对齐
-			if (debug) {
-				cprintf("sys_ipc_try_send():srcva is not page-alligned\n");
-			}
-			return -E_INVAL;
-		}
-		if ((*pte & perm & 7) != (perm & 7)) {  //perm应该是*pte的子集
-			if (debug) {
-				cprintf("sys_ipc_try_send():perm is wrong\n");
-			}
-			return -E_INVAL;
-		}
-		if (!pg) {			//srcva还没有映射到物理页
-			if (debug) {
-				cprintf("sys_ipc_try_send():srcva is not maped\n");
-			}
-			return -E_INVAL;
-		}
-		if ((perm & PTE_W) && !(*pte & PTE_W)) {	//写权限
-			if (debug) {
-				cprintf("sys_ipc_try_send():*pte do not have PTE_W, but perm have\n");
-			}
-			return -E_INVAL;
-		}		
-		
-		if (rcvenv->env_ipc_dstva < (void*)UTOP) {
-			ret = page_insert(rcvenv->env_pgdir, pg, rcvenv->env_ipc_dstva, perm); //共享相同的映射关系
-			if (ret) return ret;
-			rcvenv->env_ipc_perm = perm;
-		}
-	}
-	rcvenv->env_ipc_recving = 0;					//标记接受进程可再次接受信息
-	rcvenv->env_ipc_from = curenv->env_id;
-	rcvenv->env_ipc_value = value; 
-	rcvenv->env_status = ENV_RUNNABLE;
-	rcvenv->env_tf.tf_regs.reg_eax = 0;
-	return 0;
-}
-/*static int
-sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
-{
-	// LAB 4: Your code here.
 
 	int err_pm = 0;
 	struct Env *target;
@@ -390,60 +334,62 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	if(err_env < 0)
 		return err_env;
 	if(target->env_ipc_recving == 0)
-		return -E_IPC_NOT_RECV;
+ 		return -E_IPC_NOT_RECV;
+	
 
-	int err_inval =((uint32_t)srcva%PGSIZE);
-	if(err_inval){
-		cprintf("not aligned , %e \n", err_inval);
-		return -E_INVAL;
-	}
-	err_inval = !(perm&(PTE_U | PTE_P));
-	if(err_inval){
-		cprintf("not present/readable , %e \n", err_inval);
-		return -E_INVAL;
-	}
-	err_inval = (perm&(~PTE_SYSCALL));
-	if(err_inval){
-		cprintf("not PTE_SYSCALL , %e \n", err_inval);
-		return -E_INVAL;
-	}
+	if(srcva < (void *)UTOP){
+		pte_t *pte;
+		struct PageInfo *page = page_lookup(curenv->env_pgdir, srcva, &pte);
+		
+		int err_inval =  (perm & PTE_W) && !(*pte & PTE_W);
+		if(err_inval){
+			cprintf("not present/readable , %e \n", err_inval);
+			return -E_INVAL;
+		}
+		err_inval =  (*pte & perm & (PTE_U | PTE_P | PTE_W) ) != (perm & (PTE_U | PTE_P | PTE_W));
+		if(err_inval){
+			cprintf("no syscall perms , %e \n", err_inval);
+			return -E_INVAL;
+		}
 
-	if(srcva < (void *)UTOP){	
-		err_inval = (perm&PTE_W &
-			     (user_mem_check(curenv,srcva,
-					     PGSIZE,PTE_W)));
+		err_inval = ((uint32_t)srcva%PGSIZE);
+		if(err_inval){
+			cprintf("not aligned , %e \n", err_inval);
+			return -E_INVAL;
+		}
+
+		err_inval = (perm & PTE_W) && !(*pte & PTE_W);
 		if(err_inval){
 			cprintf("no write perm , %e \n",
 				err_inval);
 			return -E_INVAL;
 		}
-		err_inval = (user_mem_check(curenv,srcva,
-					    PGSIZE,PTE_P));
+		err_inval = page==NULL;
+			
 		if(err_inval){
 			cprintf("not present  , %e \n",
 				err_inval);
 			return -E_INVAL;
 		}
 		if (target->env_ipc_dstva < (void*)UTOP) {
-			int err_pa = sys_page_alloc(envid,srcva,perm);
+
+			int err_pa = page_insert(target->env_pgdir, page, target->env_ipc_dstva, perm); 
 			if (err_pa) return err_pa;
+			target->env_ipc_perm = perm;
 		}
-		err_pm = sys_page_map(envid,				      srcva, curenv->env_id, srcva,perm);
 	}
+
 	target->env_ipc_recving = 0;
 	target->env_ipc_from = curenv->env_id;
-	target->env_ipc_value = value;
-	target->env_ipc_perm = perm;
+	target->env_ipc_value = value; 
 	target->env_status = ENV_RUNNABLE;
-			 
-
+	target->env_tf.tf_regs.reg_eax = 0;
 	
-	cprintf("err_pm:%d \n",err_pm);
 	if(err_pm < 0)
 		return err_pm;
 	return 0;
 }
-*/
+
 // Block until a value is ready.  Record that you want to receive
 // using the env_ipc_recving and env_ipc_dstva fields of struct Env,
 // mark yourself not runnable, and then give up the CPU.
