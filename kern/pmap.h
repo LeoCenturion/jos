@@ -63,22 +63,39 @@ void	page_decref(struct PageInfo *pp);
 
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
+
+
+/*
+ *Pages contiene un puntero a una extructura externa
+ *pp contiene la direccion de la pagina a calcular
+ * La funcion calcula la diferencia entre las dos direcciones
+  y la divide por el tamaño del struct. Entonces obtiene el numero
+  de pagina fisica.
+*/
+
 void *	mmio_map_region(physaddr_t pa, size_t size);
+
 
 int	user_mem_check(struct Env *env, const void *va, size_t len, int perm);
 void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
 
+
 static inline physaddr_t
 page2pa(struct PageInfo *pp)
 {
-	return (pp - pages) << PGSHIFT;
+	uint32_t ret = pp - pages;
+	ret = ret / sizeof(struct PageInfo);
+	ret *= PGSIZE;
+	//return ret;
+	return (pp - pages) << (PGSHIFT);
 }
 
 static inline struct PageInfo*
 pa2page(physaddr_t pa)
 {
-	if (PGNUM(pa) >= npages)
+	if (PGNUM(pa) >= npages){
 		panic("pa2page called with invalid pa");
+	}
 	return &pages[PGNUM(pa)];
 }
 

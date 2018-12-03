@@ -29,9 +29,39 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-
 	// sched_halt never returns
-	sched_halt();
+
+	if(!curenv){ //si no hay env corriendo, corre el primero valido que encuentre
+		for(int k = 0; k < NENV; k++){
+			if( envs[k].env_status == ENV_RUNNABLE ){
+				env_run(&envs[k]);
+			}
+		}
+		sched_halt(); //si no encuentra ninguno valido halt
+	}
+
+	int i;
+	for(i = 0; i < NENV; i++){ //si hay env corriendo busca cual índice tiene
+		if(envs[i].env_id == curenv->env_id){
+			break;
+		}
+	}
+	for(int j = i+1; j < NENV; j++){ //a partid del índice corre el siguiente env valido
+		if( envs[j].env_status == ENV_RUNNABLE ){
+			env_run(&envs[j]);
+		}
+	}
+
+	for(int j = 0; j < i; j++){ 
+		if( envs[j].env_status == ENV_RUNNABLE ){
+			env_run(&envs[j]);
+		}
+	}
+
+	if(curenv->env_status == ENV_RUNNING) //si no encontro ninguno trata de correr el actual
+		env_run(&envs[i]);
+
+	sched_halt(); // si no hay nada para correr halt
 }
 
 // Halt this CPU when there is nothing to do. Wait until the

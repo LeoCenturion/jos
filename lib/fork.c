@@ -58,6 +58,59 @@ duppage(envid_t envid, unsigned pn)
 	return 0;
 }
 
+static void
+dup_or_share(envid_t dstenv, void *va, int perm)
+{
+	int r;
+	
+	if (!(perm & PTE_W)) {
+		if ((r = sys_page_map(0, va, dstenv, va, (perm & PTE_SYSCALL))) < 0)
+			//sys_page_map(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int perm)
+			panic("sys_page_map: %e", r);
+	}
+	else {
+		//si la página es de escritura, simplemente se crea una copia
+		if ((r = sys_page_alloc(dstenv, va, perm & PTE_SYSCALL)) < 0)
+			panic("sys_page_alloc: %e", r);
+		if ((r = sys_page_map(dstenv, va, 0, UTEMP, perm & PTE_SYSCALL)) < 0)
+			panic("sys_page_map: %e", r);
+		memmove(UTEMP, va, PGSIZE);
+		if ((r = sys_page_unmap(0, UTEMP)) < 0)
+			panic("sys_page_unmap: %e", r);
+	}
+}
+
+envid_t
+fork_v0(void)
+{
+	//LAB 4
+	envid_t envid;
+	uint8_t *addr;
+	int r;
+
+	envid = sys_exofork();
+	if (envid < 0)
+		panic("sys_exofork: %e", envid);
+	if (envid == 0) {
+		thisenv = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+
+	for (addr = 0; addr < (uint8_t*)UTOP; addr += PGSIZE){
+		if(uvpd[PDX(addr)]&PTE_P){
+			pte_t pte = uvpt[PGNUM(addr)];
+			if(pte&PTE_P){
+				dup_or_share(envid, addr, PGOFF(pte));
+			}			
+		}
+	}
+
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+
+	return envid;
+}
+
 //
 // User-level fork with copy-on-write.
 // Set up our page fault handler appropriately.
@@ -78,7 +131,7 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	return fork_v0();
 }
 
 // Challenge!
