@@ -199,7 +199,6 @@ serve_set_size(envid_t envid, struct Fsreq_set_size *req)
 	// On failure, return the error code to the client with ipc_send.
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
-
 	// Second, call the relevant file system function (from fs/fs.c).
 	// On failure, return the error code to the client.
 	return file_set_size(o->o_file, req->req_size);
@@ -222,7 +221,17 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		        req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+	if(sizeof(ret->ret_buf) < req->req_n)
+		panic( "panic \n");
+	struct OpenFile *o;
+	int r = 0;
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+	r = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset);
+	if( r > 0)
+		o->o_fd->fd_offset+=r;
+	return r;
+
 }
 
 
@@ -240,7 +249,19 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		        req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+
+	if(sizeof(req->req_buf) < req->req_n)
+		panic( "panic \n");
+	struct OpenFile *o;
+	int r = 0;
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+	r = file_read(o->o_file, req->req_buf, req->req_n, 0);
+
+	if( r > 0)
+		o->o_fd->fd_offset+=r;
+
+	return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
