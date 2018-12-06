@@ -136,6 +136,12 @@ trap_init(void)
 
 	void int32();
 	SETGATE(idt[IRQ_OFFSET+IRQ_TIMER],0,GD_KT, int32, 0);
+
+	void int33();
+	SETGATE(idt[IRQ_OFFSET+IRQ_KBD],0,GD_KT, int33, 0);
+
+	void int39();
+	SETGATE(idt[IRQ_OFFSET+IRQ_SERIAL],0,GD_KT, int39, 0);
 	
 	void int48();
 	SETGATE(idt[T_SYSCALL],0,GD_KT, int48, 3);
@@ -259,6 +265,15 @@ trap_dispatch(struct Trapframe *tf)
 		lapic_eoi();
 		sched_yield();
 		return;
+	case (IRQ_OFFSET + IRQ_KBD):
+		kbd_intr();
+		sched_yield();
+		return;
+	case (IRQ_OFFSET + IRQ_SERIAL):
+		serial_intr();
+		sched_yield();
+		return;
+
 	case T_SYSCALL:
 		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
 		return;

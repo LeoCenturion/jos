@@ -485,6 +485,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		return sys_ipc_try_send( (envid_t) a1, (uint32_t) a2, (void *)a3, (unsigned) a4);
 	case SYS_env_set_pgfault_upcall:
 		return sys_env_set_pgfault_upcall(a1, (void *) a2);
+
 	default:
 		cprintf("INVALID\n");
 		return -E_INVAL;
