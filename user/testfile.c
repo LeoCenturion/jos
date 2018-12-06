@@ -82,7 +82,7 @@ umain(int argc, char **argv)
 	if (r != strlen(msg))
 		panic("file_read after file_write returned wrong length: %d", r);
 	if (strcmp(buf, msg) != 0)
-		panic("file_read after file_write returned wrong data");
+		panic("file_read after file_write returned wrong data %s %s",buf,msg);
 	cprintf("file_read after file_write is good\n");
 
 	// Now we'll try out open
@@ -102,6 +102,7 @@ umain(int argc, char **argv)
 	if ((f = open("/big", O_WRONLY|O_CREAT)) < 0)
 		panic("creat /big: %e", f);
 	memset(buf, 0, sizeof(buf));
+
 	for (i = 0; i < (NDIRECT*3)*BLKSIZE; i += sizeof(buf)) {
 		*(int*)buf = i;
 		if ((r = write(f, buf, sizeof(buf))) < 0)

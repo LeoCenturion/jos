@@ -145,13 +145,17 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	fsipcbuf.write.req_fileid = fd->fd_file.id;
 	fsipcbuf.write.req_n = n;
 //	fsipcbuf.write.req_buf = buf;
-	int r = 0;
-	memcpy(fsipcbuf.write.req_buf, buf, r);
-	if ( r < 0 )
-		return r;
 
-	if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
-		return r;
+	int r = 0;
+	/*for(int i = 0; i<=n; i+=buf_size){
+		memcpy(fsipcbuf.write.req_buf + fd->fd_offset, buf, buf_size);
+		r += fsipc(FSREQ_WRITE, NULL); //return error
+		}*/
+	//      size_t buf_size = PGSIZE - (sizeof(int) + sizeof(size_t));
+//	int cpy_size = (n >(buf_size - fd->fd_offset))? buf_size- fd->fd_offset : n ;
+	
+	memcpy(fsipcbuf.write.req_buf + fd->fd_offset, buf, n);
+	r = fsipc(FSREQ_WRITE, NULL); 
 	
 	assert(r <= n);
 	assert(r <= PGSIZE);

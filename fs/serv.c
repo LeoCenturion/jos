@@ -256,11 +256,10 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 	int r = 0;
 	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
 		return r;
-	r = file_read(o->o_file, req->req_buf, req->req_n, 0);
+	r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset);
 
 	if( r > 0)
 		o->o_fd->fd_offset+=r;
-
 	return r;
 }
 
