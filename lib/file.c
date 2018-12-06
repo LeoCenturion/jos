@@ -153,8 +153,8 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 		}*/
 	//      size_t buf_size = PGSIZE - (sizeof(int) + sizeof(size_t));
 //	int cpy_size = (n >(buf_size - fd->fd_offset))? buf_size- fd->fd_offset : n ;
-	
-	memcpy(fsipcbuf.write.req_buf + fd->fd_offset, buf, n);
+
+	memcpy(fsipcbuf.write.req_buf, buf, n);
 	r = fsipc(FSREQ_WRITE, NULL); 
 	
 	assert(r <= n);
