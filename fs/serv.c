@@ -221,8 +221,8 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		        req->req_n);
 
 	// Lab 5: Your code here:
-	if(sizeof(ret->ret_buf) < req->req_n)
-		panic( "panic \n");
+//	if(sizeof(ret->ret_buf) < req->req_n)
+//		panic( "panic \n");
 	struct OpenFile *o;
 	
 	int r = 0;
