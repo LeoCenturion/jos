@@ -140,15 +140,19 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// Remember to check whether the user has supplied us with a good
 	// address!
 	//panic("sys_env_set_trapframe not implemented");
-	struct Env *env;
-	if(envid2env(envid, &env, 1)<0 || user_mem_check(curenv, tf, sizeof(tf), PTE_U)<0)
-		return -E_BAD_ENV;
 
-	tf->tf_eflags &= ~FL_IOPL_1;
-	tf->tf_eflags |= FL_IF;
-	
-	env->env_tf = *tf;
-       
+
+	struct Env *e;
+	int r;
+	if(envid2env(envid, &e, 1) < 0){
+		return -E_BAD_ENV;
+	}
+
+	tf->tf_eflags = FL_IF;
+	tf->tf_eflags &= ~FL_IOPL_MASK;   
+	tf->tf_cs = GD_UT | 3;
+
+	e->env_tf = *tf;
 	return 0;
 }
 
