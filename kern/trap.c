@@ -13,6 +13,7 @@
 #include <kern/picirq.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
+#include <kern/time.h>
 
 //static struct Taskstate ts;
 
@@ -145,6 +146,7 @@ trap_init(void)
 	
 	void int48();
 	SETGATE(idt[T_SYSCALL],0,GD_KT, int48, 3);
+
 	
 	// Per-CPU setup
 	trap_init_percpu();
@@ -263,6 +265,7 @@ trap_dispatch(struct Trapframe *tf)
 		page_fault_handler(tf);
 	case (IRQ_OFFSET + IRQ_TIMER):
 		lapic_eoi();
+		time_tick();
 		sched_yield();
 		return;
 	case (IRQ_OFFSET + IRQ_KBD):
@@ -303,9 +306,15 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 
+	// Add time tick increment to clock interrupts.
+	// Be careful! In multiprocessors, clock interrupts are
+	// triggered on every CPU.
+	// LAB 6: Your code here.
+
+
 	// Handle keyboard and serial interrupts.
 	// LAB 5: Your code here.
-
+	
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
