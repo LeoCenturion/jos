@@ -7,22 +7,31 @@ struct pci_func *e100_pci_func;
 volatile struct tx_desc trans_descr_list[E1000_TDL_SIZE] __attribute__ ((aligned (16)));
 
 void transmit_initialization( volatile uint32_t *addr){
-	*(uint32_t*)(bar0_addr + E1000_TDBAL) = (uint32_t)&trans_descr_list[0]; 
-	cprintf("tdbal = %p \n", *(uint32_t*)(bar0_addr + E1000_TDBAL)); 
+	uint32_t *tdbal = (uint32_t*)(bar0_addr + E1000_TDBAL);
+	*tdbal = (uint32_t)&trans_descr_list[0];
+	
+	uint32_t *tdbah = (uint32_t*)(bar0_addr + E1000_TDBAH);
+	*tdbah = 0;
+	
+	uint32_t *tdlen = (uint32_t*)(bar0_addr + E1000_TDLEN);
+	*tdlen= (uint32_t)E1000_TDL_SIZE*sizeof(struct tx_desc);
 
- 	*(uint32_t*)(bar0_addr + E1000_TDLEN) = (uint32_t)E1000_TDL_SIZE*sizeof(struct tx_desc); 
- 	if( *(uint32_t*)(bar0_addr + E1000_TDLEN) & 0xFF)  
+ 	if( *tdlen & 0xFF)  
  		panic("TDLEN unaligned\n"); 
 
- 	if( *(uint32_t*)(bar0_addr + E1000_TDBAL) & 0xF)  
+ 	if( *tdbal & 0xF)  
  		panic("TDBAL unaligned\n"); 
 
-	 *(bar0_addr + E1000_TDH) = 0; 
-	 *(bar0_addr + E1000_TDT) = 0;
-	 cprintf("TDH = %x \n TDT = %x \n",*(bar0_addr + E1000_TDH), *(bar0_addr + E1000_TDT) );
-	 *(bar0_addr + E1000_TCTL) = E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_COLD_FULL_DUPLEX;
-	 *(bar0_addr + E1000_TIPG) = E1000_TIPG_IEEE;
-	 
+	volatile uint32_t *tdh = (uint32_t*)(bar0_addr + E1000_TDH);
+	*tdh = 0; 
+	volatile uint32_t *tdt = (uint32_t*)(bar0_addr + E1000_TDT);
+	*tdt = 0;
+	
+	volatile uint32_t *tctl = (uint32_t*)(bar0_addr + E1000_TCTL);
+	*tctl = E1000_TCTL_EN | E1000_TCTL_PSP | E1000_TCTL_COLD_FULL_DUPLEX;
+	volatile uint32_t *tipg = (uint32_t*)(bar0_addr + E1000_TIPG);
+	*tipg= 50; //E1000_TIPG_IEEE;
+	cprintf("TDBAL = %x \nTDBAH = %x  \nTDLEN = %d \nTDT = %x \nTDH = %x \nTCTL = %x \nTIPG = %x\n",*tdbal,*tdbah,*tdlen,*tdt,*tdh,*tctl,*tipg);
 }
 
 
