@@ -24,7 +24,11 @@
 #define E1000_TCTL_COLD_FULL_DUPLEX 0x00040000
 #define E1000_TIPG     0x00410  /* TX Inter-packet gap -RW */
 #define E1000_TIPG_IEEE 0x0060100a
-int attach_e1000(struct pci_func *pcif);
+/*Transmit descriptor bite definition*/
+#define E1000_CMD_RS 0x8
+#define E1000_STATUS_DD 0x1
+#define MAX_ETH_PKT_SZ 0x5EE
+
 
 struct tx_desc
 {
@@ -35,7 +39,7 @@ struct tx_desc
 	uint8_t status;
 	uint8_t css;
 	uint16_t special;
-}__attribute__((packed,aligned(16)));
+} __attribute__((packed,aligned(16)));
 	
 /* Receive Descriptor */
 struct e1000_rx_desc {
@@ -47,3 +51,6 @@ struct e1000_rx_desc {
     uint16_t special;
 } __attribute__((packed,aligned(16)));
 
+int attach_e1000(struct pci_func *pcif);
+
+int e1000_packet_try_send(uint8_t *data, uint32_t size);
