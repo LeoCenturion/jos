@@ -63,7 +63,7 @@ void transmit_initialization( volatile uint8_t *addr){
 struct tx_desc
 make_packet(uint8_t *data, uint32_t size){
 	struct tx_desc desc;
-	desc.addr = (uint64_t)((uint32_t)data);
+	desc.addr = (uint64_t)((uint32_t)PADDR(data));
 	desc.length = (uint16_t)size;
 	desc.cso = 0;
 	desc.cmd = E1000_CMD_RS;
@@ -122,7 +122,7 @@ int attach_e1000(struct pci_func *pcif){
 
 	uint32_t data[5] = {1,2,3,4,5};
 	uint32_t size = 20;
-	syscall(SYS_packet_try_send,PADDR((void *)data),size,0,0,0); 
+	syscall(SYS_packet_try_send,(uint32_t)data,size,0,0,0); 
 
 	return 0;
 }
