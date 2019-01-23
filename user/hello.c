@@ -1,9 +1,12 @@
 // hello, world
 #include <inc/lib.h>
+#include <inc/syscall.h>
 
 void
 umain(int argc, char **argv)
 {
 	cprintf("hello, world\n");
 	cprintf("i am environment %08x\n", sys_getenvid());
+
 }
+

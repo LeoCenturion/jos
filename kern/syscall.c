@@ -461,8 +461,8 @@ sys_time_msec(void)
 
 static int
 sys_packet_try_send(uint8_t *data, uint32_t size){
-	int r = e1000_packet_try_send(data,size);
-	return r; 
+
+	return e1000_packet_try_send(data,size); 
 	
 }
 
