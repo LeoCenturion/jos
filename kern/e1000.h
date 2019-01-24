@@ -53,4 +53,4 @@ struct e1000_rx_desc {
 
 int attach_e1000(struct pci_func *pcif);
 
-int e1000_packet_try_send(uint8_t *data, uint32_t size);
+int e1000_packet_try_send(uint8_t *data, uint32_t size,uint32_t envid);

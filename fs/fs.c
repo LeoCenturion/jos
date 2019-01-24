@@ -17,7 +17,7 @@ check_super(void)
 	if (super->s_nblocks > DISKSIZE / BLKSIZE)
 		panic("file system is too large");
 
-	cprintf("superblock is good\n");
+	//cprintf("superblock is good\n");
 }
 
 // --------------------------------------------------------------
@@ -90,7 +90,7 @@ check_bitmap(void)
 	assert(!block_is_free(0));
 	assert(!block_is_free(1));
 
-	cprintf("bitmap is good\n");
+	//cprintf("bitmap is good\n");
 }
 
 // --------------------------------------------------------------
@@ -446,7 +446,7 @@ file_truncate_blocks(struct File *f, off_t newsize)
 	new_nblocks = (newsize + BLKSIZE - 1) / BLKSIZE;
 	for (bno = new_nblocks; bno < old_nblocks; bno++)
 		if ((r = file_free_block(f, bno)) < 0)
-			cprintf("warning: file_free_block: %e", r);
+			//cprintf("warning: file_free_block: %e", r);
 
 	if (new_nblocks <= NDIRECT && f->f_indirect) {
 		free_block(f->f_indirect);

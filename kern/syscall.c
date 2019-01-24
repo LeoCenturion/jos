@@ -57,10 +57,10 @@ sys_env_destroy(envid_t envid)
 
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
-	if (e == curenv)
+/*	if (e == curenv)
 		cprintf("[%08x] exiting gracefully\n", curenv->env_id);
 	else
-		cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
+	cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);*/
 	env_destroy(e);
 	return 0;
 }
@@ -382,7 +382,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 			cprintf("no syscall perms , %e \n", err_inval);
 			return -E_INVAL;
 		}
-
 		err_inval = ((uint32_t)srcva%PGSIZE);
 		if(err_inval){
 			cprintf("not aligned , %e \n", err_inval);
@@ -461,8 +460,8 @@ sys_time_msec(void)
 
 static int
 sys_packet_try_send(uint8_t *data, uint32_t size){
-
-	return e1000_packet_try_send(data,size); 
+	uint32_t envid = sys_getenvid();//curenv->env_id;
+	return e1000_packet_try_send(data,size,envid); 
 	
 }
 

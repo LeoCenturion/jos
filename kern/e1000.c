@@ -1,9 +1,7 @@
 #include <kern/e1000.h>
-#include <inc/stdio.h>
-#include <kern/pmap.h>
-#include <inc/string.h>
-#include <inc/syscall.h>
 #include <kern/syscall.h>
+#include <inc/string.h>
+#include <kern/pmap.h>
 // LAB 6: Your driver code here
 static volatile uint8_t *bar0_addr;
 
@@ -74,24 +72,26 @@ make_packet(uint8_t *data, uint32_t size){
 }
 
 
-int e1000_packet_try_send(uint8_t *data, uint32_t size){
-	struct tx_desc desc = make_packet(data,size);
+int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
+	
+
 	volatile uint32_t tdt = getreg(E1000_TDT);
 
-//	trans_descr_list[tdt].cmd = trans_descr_list[tdt].cmd | E1000_CMD_RS;
+	syscall(SYS_page_map,envid, (uint32_t)data, 0, (uint32_t)packet_buffer_list[tdt], 0);
 
-//	if( !(trans_descr_list[tdt].status & E1000_STATUS_DD) ){
-//		return 1;
-//	}
+	struct tx_desc desc = make_packet((uint8_t *)packet_buffer_list[tdt],size);
+	trans_descr_list[tdt].cmd = trans_descr_list[tdt].cmd | E1000_CMD_RS;
+
+	if( !(trans_descr_list[tdt].status & E1000_STATUS_DD) ){
+		return 1;
+	}
 	
 //	packet_buffer_list[tdt] =  page_alloc(0) ; //allocate buffer
 //	void* addr = (void *)get_low(desc.addr);
-//	cprintf("64addr = %llx \n32addr = %x \n",desc.addr,addr);
 //	memcpy(packet_buffer_list[tdt],addr,desc.length);
 
 //	desc.addr =  (uint64_t)(uint32_t)packet_buffer_list[tdt];
 	trans_descr_list[tdt] = desc;
-	cprintf("addr64 = %llx \n",trans_descr_list[tdt].addr);
 	if(tdt == E1000_TDL_SIZE - 1){//update tdt
 		setreg(E1000_TDT, 0);
 	}
@@ -117,12 +117,15 @@ int attach_e1000(struct pci_func *pcif){
 
 	transmit_initialization(bar0_addr);
 	for(int i=0; i<E1000_TDL_SIZE; i++){
+		struct PageInfo *page = page_alloc(PTE_U | PTE_P);
+		char *page_va = page2kva(page);
+		packet_buffer_list[i] = page_va;
 		trans_descr_list[i].cmd = E1000_CMD_RS;
+		trans_descr_list[i].status = E1000_STATUS_DD;
+
 	}
 
-	uint32_t data[5] = {1,2,3,4,5};
-	uint32_t size = 20;
-	syscall(SYS_packet_try_send,(uint32_t)data,size,0,0,0); 
 
+	
 	return 0;
 }
