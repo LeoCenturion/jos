@@ -22,7 +22,7 @@
 #include <inc/args.h>
 #include <inc/malloc.h>
 #include <inc/ns.h>
-
+#include <inc/mmu.h>
 #define USED(x)		(void)(x)
 
 // main user program

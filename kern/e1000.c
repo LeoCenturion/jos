@@ -2,6 +2,8 @@
 #include <kern/syscall.h>
 #include <inc/string.h>
 #include <kern/pmap.h>
+#include <kern/env.h>
+#include <inc/error.h>
 // LAB 6: Your driver code here
 static volatile uint8_t *bar0_addr;
 
@@ -64,22 +66,64 @@ make_packet(uint8_t *data, uint32_t size){
 	desc.addr = (uint64_t)((uint32_t)PADDR(data));
 	desc.length = (uint16_t)size;
 	desc.cso = 0;
-	desc.cmd = E1000_CMD_RS;
+	desc.cmd = E1000_CMD_RS | E1000_CMD_EOP;
 	desc.status = 0;
 	desc.css = 0;
 	desc.special = 0;
 	return desc;
 }
 
+int copy_from_user_space(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int perm){
+		struct Env * srcEnv;
+	struct Env * dstEnv;
+	if((envid2env(srcenvid, &srcEnv, 1)<0) || (envid2env(dstenvid, &dstEnv, 1)<0) )
+		return -E_BAD_ENV;
+
+	if((uint32_t)srcva >= UTOP )
+		return -E_INVAL;
+
+	if(!(perm&(PTE_U | PTE_P)) || (perm&(~PTE_SYSCALL)) )
+		return -E_INVAL;
+
+
+	pte_t * pte_store;
+	struct PageInfo *pageI = page_lookup(srcEnv->env_pgdir, srcva, &pte_store);
+	if(!pageI)
+		return -E_INVAL;
+
+	if((perm & PTE_W) && !(*pte_store&PTE_W))
+		return -E_INVAL;
+
+
+	if(page_insert(dstEnv->env_pgdir, pageI, dstva, perm)<0){
+		page_free(pageI);
+		return -E_NO_MEM;
+	}
+
+	return 0;
+
+}
 
 int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
-	
-
+	cprintf("e1000.c len = %lu\n",size);
+	cprintf("printing data \n");
+	for(uint32_t i = 0; i < size; i++){
+		cprintf("%d ",data[i]);
+	}
+	cprintf("\n");
 	volatile uint32_t tdt = getreg(E1000_TDT);
 
-	syscall(SYS_page_map,envid, (uint32_t)data, 0, (uint32_t)packet_buffer_list[tdt], 0);
-
+	int e = copy_from_user_space(envid, (void *)data, 0, (void *)packet_buffer_list[tdt], PTE_U | PTE_P | PTE_W);
+	
+	if(e)
+		cprintf("error %e\n",e);
 	struct tx_desc desc = make_packet((uint8_t *)packet_buffer_list[tdt],size);
+	uint8_t *data_again = (uint8_t *)(packet_buffer_list[tdt]);
+	cprintf("printing data again \n");
+	for(uint32_t i = 0; i < size; i++){
+		cprintf("%d ",data_again[i]);
+	}
+	cprintf("\n");
 	trans_descr_list[tdt].cmd = trans_descr_list[tdt].cmd | E1000_CMD_RS;
 
 	if( !(trans_descr_list[tdt].status & E1000_STATUS_DD) ){

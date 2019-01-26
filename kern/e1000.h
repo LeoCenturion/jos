@@ -26,6 +26,7 @@
 #define E1000_TIPG_IEEE 0x0060100a
 /*Transmit descriptor bite definition*/
 #define E1000_CMD_RS 0x8
+#define E1000_CMD_EOP 0x1
 #define E1000_STATUS_DD 0x1
 #define MAX_ETH_PKT_SZ 0x5EE
 
