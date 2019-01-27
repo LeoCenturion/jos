@@ -112,9 +112,10 @@ int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
 	}
 	cprintf("\n");
 	volatile uint32_t tdt = getreg(E1000_TDT);
-
-	int e = copy_from_user_space(envid, (void *)data, 0, (void *)packet_buffer_list[tdt], PTE_U | PTE_P | PTE_W);
 	
+	int e = copy_from_user_space(envid, (void *)data, 0, (void *)packet_buffer_list[tdt], PTE_U | PTE_P | PTE_W);
+	uint32_t pg_offset = (uint32_t)data & 0xfff; 
+	packet_buffer_list[tdt] = (void *)((uint32_t )packet_buffer_list[tdt]  + pg_offset); 
 	if(e)
 		cprintf("error %e\n",e);
 	struct tx_desc desc = make_packet((uint8_t *)packet_buffer_list[tdt],size);
