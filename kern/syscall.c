@@ -512,9 +512,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_packet_try_recv:
 		panic("SYS_packet_try_recv not implemented");
 	case SYS_packet_try_send:
-		sys_packet_try_send( (uint8_t *) a1, (uint32_t) a2);
+		return sys_packet_try_send( (uint8_t *) a1, (uint32_t) a2);
 	default:
-		cprintf("syscall no INVALID\n");
+		cprintf("syscall number %d INVALID\n ",syscallno);
 		return -E_INVAL;
 	}
 }

@@ -49,7 +49,7 @@ void transmit_initialization( volatile uint8_t *addr){
 	volatile uint32_t *tipg = (uint32_t*)(bar0_addr + E1000_TIPG);
 	setreg(E1000_TIPG,E1000_TIPG_IEEE);
 
-	cprintf("TDBAL = %x \nTDBAH = %x  \nTDLEN = %d \nTDT = %x \nTDH = %x \nTCTL = %x \nTIPG = %x\n",tdbal,*tdbah,*tdlen,*tdt,*tdh,*tctl,*tipg);
+	//cprintf("TDBAL = %x \nTDBAH = %x  \nTDLEN = %d \nTDT = %x \nTDH = %x \nTCTL = %x \nTIPG = %x\n",tdbal,*tdbah,*tdlen,*tdt,*tdh,*tctl,*tipg);
 	if( *tdlen & 0xFF)  
  		panic("TDLEN unaligned\n"); 
 
@@ -74,7 +74,7 @@ make_packet(uint8_t *data, uint32_t size){
 }
 
 int copy_from_user_space(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int perm){
-		struct Env * srcEnv;
+	struct Env * srcEnv;
 	struct Env * dstEnv;
 	if((envid2env(srcenvid, &srcEnv, 1)<0) || (envid2env(dstenvid, &dstEnv, 1)<0) )
 		return -E_BAD_ENV;
@@ -105,7 +105,6 @@ int copy_from_user_space(envid_t srcenvid, void *srcva, envid_t dstenvid, void *
 }
 
 int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
-	cprintf("e1000.c len = %lu\n",size);
 	cprintf("printing data \n");
 	for(uint32_t i = 0; i < size; i++){
 		cprintf("%d ",data[i]);
@@ -114,29 +113,27 @@ int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
 	volatile uint32_t tdt = getreg(E1000_TDT);
 	
 	int e = copy_from_user_space(envid, (void *)data, 0, (void *)packet_buffer_list[tdt], PTE_U | PTE_P | PTE_W);
+	if(e) return e;
+
 	uint32_t pg_offset = (uint32_t)data & 0xfff; 
-	packet_buffer_list[tdt] = (void *)((uint32_t )packet_buffer_list[tdt]  + pg_offset); 
-	if(e)
-		cprintf("error %e\n",e);
+	packet_buffer_list[tdt] = (void *)((uint32_t )packet_buffer_list[tdt]  + pg_offset);
+	
 	struct tx_desc desc = make_packet((uint8_t *)packet_buffer_list[tdt],size);
+
 	uint8_t *data_again = (uint8_t *)(packet_buffer_list[tdt]);
 	cprintf("printing data again \n");
+	
 	for(uint32_t i = 0; i < size; i++){
 		cprintf("%d ",data_again[i]);
 	}
 	cprintf("\n");
-	trans_descr_list[tdt].cmd = trans_descr_list[tdt].cmd | E1000_CMD_RS;
 
 	if( !(trans_descr_list[tdt].status & E1000_STATUS_DD) ){
-		return 1;
+		return -E_E1000_TRANS_FULL;
 	}
 	
-//	packet_buffer_list[tdt] =  page_alloc(0) ; //allocate buffer
-//	void* addr = (void *)get_low(desc.addr);
-//	memcpy(packet_buffer_list[tdt],addr,desc.length);
-
-//	desc.addr =  (uint64_t)(uint32_t)packet_buffer_list[tdt];
 	trans_descr_list[tdt] = desc;
+
 	if(tdt == E1000_TDL_SIZE - 1){//update tdt
 		setreg(E1000_TDT, 0);
 	}
@@ -151,18 +148,15 @@ int attach_e1000(struct pci_func *pcif){
 	pci_func_enable(pcif);
 
 	bar0_addr = mmio_map_region(pcif->reg_base[0],pcif->reg_size[0]);
-//	struct PageInfo *page = page_alloc(0);
-//	trans_descr_list =(void *) ROUNDUP(page,sizeof(struct tx_desc));
 
 	uint32_t *status_reg = (void *)((uint32_t )bar0_addr + (uint32_t)0x8 );
 
-	cprintf("reg_base = %x \nreg_size = %d \nmap = %x \ntdl = %x \n",
-		pcif->reg_base[0], pcif->reg_size[0], bar0_addr, trans_descr_list); 
+	cprintf("reg_base = %x \nreg_size = %d \nmap = %x \ntdl = %x \n",pcif->reg_base[0], pcif->reg_size[0], bar0_addr, trans_descr_list); 
 	cprintf("status_reg = %x \n", *status_reg); 
 
 	transmit_initialization(bar0_addr);
 	for(int i=0; i<E1000_TDL_SIZE; i++){
-		struct PageInfo *page = page_alloc(PTE_U | PTE_P);
+		struct PageInfo *page = page_alloc(PTE_U | PTE_P | PTE_W);
 		char *page_va = page2kva(page);
 		packet_buffer_list[i] = page_va;
 		trans_descr_list[i].cmd = E1000_CMD_RS;
