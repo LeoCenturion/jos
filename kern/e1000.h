@@ -9,6 +9,15 @@
 #define E1000_TDH      0x03810  /* TX Descriptor Head - RW */
 #define E1000_TDT      0x03818  /* TX Descripotr Tail - RW */
 #define E1000_TCTL     0x00400  /* TX Control - RW */
+#define E1000_RDH      0x02810  /* RX Descriptor Head - RW */
+#define E1000_RDT      0x02818  /* RX Descriptor Tail - RW */
+#define E1000_RCTL     0x00100
+#define E1000_RDLEN    0x80
+#define E1000_RDBAL    0x02800  /* RX Descriptor Base Address Low - RW */
+#define E1000_RDBAH    0x02804  /* RX Descriptor Base Address High - RW */
+#define E1000_RA       0x05400  /* Receive Address - RW Array */
+#define E1000_MTA      0x05200  /* Multicast Table Array - RW Array */
+
 /* Transmit Control */
 #define E1000_TCTL_RST    0x00000001    /* software reset */
 #define E1000_TCTL_EN     0x00000002    /* enable tx */
@@ -30,6 +39,40 @@
 #define E1000_STATUS_DD 0x1
 #define MAX_ETH_PKT_SZ 0x5EE
 
+/* Receive Descriptor bit definitions */
+#define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
+#define E1000_RXD_STAT_EOP      0x02    /* End of Packet */
+#define E1000_RXD_STAT_IXSM     0x04    /* Ignore checksum */
+#define E1000_RXD_STAT_VP       0x08    /* IEEE VLAN Packet */
+#define E1000_RXD_STAT_UDPCS    0x10    /* UDP xsum caculated */
+#define E1000_RXD_STAT_TCPCS    0x20    /* TCP xsum calculated */
+#define E1000_RXD_STAT_IPCS     0x40    /* IP xsum calculated */
+#define E1000_RXD_STAT_PIF      0x80    /* passed in-exact filter */
+#define E1000_RXD_STAT_IPIDV    0x200   /* IP identification valid */
+#define E1000_RXD_STAT_UDPV     0x400   /* Valid UDP checksum */
+#define E1000_RXD_STAT_ACK      0x8000  /* ACK Packet indication */
+#define E1000_RXD_ERR_CE        0x01    /* CRC Error */
+#define E1000_RXD_ERR_SE        0x02    /* Symbol Error */
+#define E1000_RXD_ERR_SEQ       0x04    /* Sequence Error */
+#define E1000_RXD_ERR_CXE       0x10    /* Carrier Extension Error */
+#define E1000_RXD_ERR_TCPE      0x20    /* TCP/UDP Checksum Error */
+#define E1000_RXD_ERR_IPE       0x40    /* IP Checksum Error */
+#define E1000_RXD_ERR_RXE       0x80    /* Rx Data Error */
+#define E1000_RXD_SPC_VLAN_MASK 0x0FFF  /* VLAN ID is in lower 12 bits */
+#define E1000_RXD_SPC_PRI_MASK  0xE000  /* Priority is in upper 3 bits */
+#define E1000_RXD_SPC_PRI_SHIFT 13
+#define E1000_RXD_SPC_CFI_MASK  0x1000  /* CFI is bit 12 */
+#define E1000_RXD_SPC_CFI_SHIFT 12
+
+/*Receive Control*/
+#define E1000_RCTL_EN             0x2
+#define E1000_RCTL_SECRC          0x04000000
+
+
+#define QEMU_MAC_ADDR_LOW  0x12005452
+#define QEMU_MAC_ADDR_HIGH 0x5634
+#define RECV_BUFF_SIZE 0x800
+
 
 struct tx_desc
 {
@@ -43,7 +86,7 @@ struct tx_desc
 } __attribute__((packed,aligned(16)));
 	
 /* Receive Descriptor */
-struct e1000_rx_desc {
+struct rx_desc {
     uint64_t buffer_addr; /* Address of the descriptor's data buffer */
     uint16_t length;     /* Length of data DMAed into data buffer */
     uint16_t csum;       /* Packet checksum */

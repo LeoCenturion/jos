@@ -8,13 +8,10 @@
 static volatile uint8_t *bar0_addr;
 
 volatile struct tx_desc trans_descr_list[E1000_TDL_SIZE]  ;
-static uint32_t tdl_index = 0;
-
 void *packet_buffer_list[E1000_TDL_SIZE];
 
- uint32_t get_low(uint64_t x){
-	 return	(uint32_t)(x);
-}
+volatile struct rx_desc recv_descr_list[E1000_RDLEN];
+static uint8_t _buffer_list[E1000_RDLEN][RECV_BUFF_SIZE];
 
 static uint32_t
 getreg(uint32_t offset)
@@ -57,6 +54,40 @@ void transmit_initialization( volatile uint8_t *addr){
  		panic("TDBAL unaligned\n"); 
 
 }
+void receive_initialization(volatile uint8_t *addr){
+//	setreg(E1000_RA,QEMU_MAC_ADDR_LOW);
+//	setreg(E1000_RA + 0x4, QEMU_MAC_ADDR_HIGH);
+	setreg(E1000_RA + 0x0 , 0x12005452);
+	setreg(E1000_RA + 0x4 , 0x5634);
+
+	for(int i = E1000_MTA; i < E1000_MTA + 0x200; i += 0x4){
+		setreg(i,0);
+	}
+
+	setreg(E1000_RDBAL,(uint32_t)PADDR((void*)recv_descr_list));
+	setreg(E1000_RDBAH, 0);
+
+	setreg(E1000_RDLEN, E1000_RDLEN*sizeof(struct rx_desc));
+	
+	for(int i = 0; i < E1000_RDLEN; i++){
+//		memset(recv_buffer_list[i],0,RECV_BUFF_SIZE);
+	}
+
+	setreg(E1000_RDT,E1000_RDLEN);
+	setreg(E1000_RDH,0);
+
+	setreg(E1000_RCTL,E1000_RCTL_EN | E1000_RCTL_SECRC);
+
+	uint32_t ral = getreg(E1000_RA);
+	uint32_t rah = getreg(E1000_RA + 0x4);
+	uint32_t rdbal = getreg(E1000_RDBAL);
+	uint32_t rdlen = getreg(E1000_RDLEN);
+	uint32_t rdt = getreg(E1000_RDT);
+	uint32_t rdh = getreg(E1000_RDH);
+	uint32_t rctl = getreg(E1000_RCTL);
+	
+	//cprintf("RAL = %lx RAH = %lx \nRDBAL = %x  \nRDLEN = %d \nRDT = %x \nRDH = %x \nRCTL = %x ",ral,rah,rdbal,rdlen,rdt,rdh,rctl);
+}
 
 
 
@@ -73,36 +104,6 @@ make_packet(uint8_t *data, uint32_t size){
 	return desc;
 }
 
-int copy_from_user_space(envid_t srcenvid, void *srcva, envid_t dstenvid, void *dstva, int perm){
-	struct Env * srcEnv;
-	struct Env * dstEnv;
-	if((envid2env(srcenvid, &srcEnv, 1)<0) || (envid2env(dstenvid, &dstEnv, 1)<0) )
-		return -E_BAD_ENV;
-
-	if((uint32_t)srcva >= UTOP )
-		return -E_INVAL;
-
-	if(!(perm&(PTE_U | PTE_P)) || (perm&(~PTE_SYSCALL)) )
-		return -E_INVAL;
-
-
-	pte_t * pte_store;
-	struct PageInfo *pageI = page_lookup(srcEnv->env_pgdir, srcva, &pte_store);
-	if(!pageI)
-		return -E_INVAL;
-
-	if((perm & PTE_W) && !(*pte_store&PTE_W))
-		return -E_INVAL;
-
-
-	if(page_insert(dstEnv->env_pgdir, pageI, dstva, perm)<0){
-		page_free(pageI);
-		return -E_NO_MEM;
-	}
-
-	return 0;
-
-}
 
 int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
 	cprintf("printing data \n");
@@ -111,13 +112,7 @@ int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
 	}
 	cprintf("\n");
 	volatile uint32_t tdt = getreg(E1000_TDT);
-	
-	int e = copy_from_user_space(envid, (void *)data, 0, (void *)packet_buffer_list[tdt], PTE_U | PTE_P | PTE_W);
-	if(e) return e;
-
-	uint32_t pg_offset = (uint32_t)data & 0xfff; 
-	packet_buffer_list[tdt] = (void *)((uint32_t )packet_buffer_list[tdt]  + pg_offset);
-	
+	memcpy(packet_buffer_list[tdt],data,size);
 	struct tx_desc desc = make_packet((uint8_t *)packet_buffer_list[tdt],size);
 
 	uint8_t *data_again = (uint8_t *)(packet_buffer_list[tdt]);
@@ -155,6 +150,7 @@ int attach_e1000(struct pci_func *pcif){
 	cprintf("status_reg = %x \n", *status_reg); 
 
 	transmit_initialization(bar0_addr);
+	receive_initialization(bar0_addr);
 	for(int i=0; i<E1000_TDL_SIZE; i++){
 		struct PageInfo *page = page_alloc(PTE_U | PTE_P | PTE_W);
 		char *page_va = page2kva(page);
