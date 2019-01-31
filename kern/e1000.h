@@ -12,7 +12,7 @@
 #define E1000_RDH      0x02810  /* RX Descriptor Head - RW */
 #define E1000_RDT      0x02818  /* RX Descriptor Tail - RW */
 #define E1000_RCTL     0x00100
-#define E1000_RDLEN    0x80
+#define E1000_RDLEN    0x02808
 #define E1000_RDBAL    0x02800  /* RX Descriptor Base Address Low - RW */
 #define E1000_RDBAH    0x02804  /* RX Descriptor Base Address High - RW */
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
@@ -72,7 +72,7 @@
 #define QEMU_MAC_ADDR_LOW  0x12005452
 #define QEMU_MAC_ADDR_HIGH 0x5634
 #define RECV_BUFF_SIZE 0x800
-
+#define E1000_RDL_LEN            0x80
 
 struct tx_desc
 {

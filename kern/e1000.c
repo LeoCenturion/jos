@@ -10,8 +10,8 @@ static volatile uint8_t *bar0_addr;
 volatile struct tx_desc trans_descr_list[E1000_TDL_SIZE]  ;
 void *packet_buffer_list[E1000_TDL_SIZE];
 
-volatile struct rx_desc recv_descr_list[E1000_RDLEN];
-static uint8_t _buffer_list[E1000_RDLEN][RECV_BUFF_SIZE];
+volatile struct rx_desc recv_descr_list[E1000_RDL_LEN];
+static uint8_t recv_buffer_list[E1000_RDL_LEN][RECV_BUFF_SIZE];
 
 static uint32_t
 getreg(uint32_t offset)
@@ -67,13 +67,13 @@ void receive_initialization(volatile uint8_t *addr){
 	setreg(E1000_RDBAL,(uint32_t)PADDR((void*)recv_descr_list));
 	setreg(E1000_RDBAH, 0);
 
-	setreg(E1000_RDLEN, E1000_RDLEN*sizeof(struct rx_desc));
+	setreg(E1000_RDLEN, E1000_RDL_LEN*sizeof(struct rx_desc));
 	
-	for(int i = 0; i < E1000_RDLEN; i++){
-//		memset(recv_buffer_list[i],0,RECV_BUFF_SIZE);
+	for(int i = 0; i < E1000_RDL_LEN; i++){
+		memset(recv_buffer_list[i],0,RECV_BUFF_SIZE);
 	}
 
-	setreg(E1000_RDT,E1000_RDLEN);
+	setreg(E1000_RDT,E1000_RDL_LEN - 1 );
 	setreg(E1000_RDH,0);
 
 	setreg(E1000_RCTL,E1000_RCTL_EN | E1000_RCTL_SECRC);
@@ -86,7 +86,7 @@ void receive_initialization(volatile uint8_t *addr){
 	uint32_t rdh = getreg(E1000_RDH);
 	uint32_t rctl = getreg(E1000_RCTL);
 	
-	//cprintf("RAL = %lx RAH = %lx \nRDBAL = %x  \nRDLEN = %d \nRDT = %x \nRDH = %x \nRCTL = %x ",ral,rah,rdbal,rdlen,rdt,rdh,rctl);
+	cprintf("RAL = %lx RAH = %lx \nRDBAL = %x  \nRDLEN = %x \nRDT = %x \nRDH = %x \nRCTL = %x ",ral,rah,rdbal,rdlen,rdt,rdh,rctl);
 }
 
 
@@ -106,22 +106,10 @@ make_packet(uint8_t *data, uint32_t size){
 
 
 int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
-	cprintf("printing data \n");
-	for(uint32_t i = 0; i < size; i++){
-		cprintf("%d ",data[i]);
-	}
-	cprintf("\n");
 	volatile uint32_t tdt = getreg(E1000_TDT);
 	memcpy(packet_buffer_list[tdt],data,size);
 	struct tx_desc desc = make_packet((uint8_t *)packet_buffer_list[tdt],size);
 
-	uint8_t *data_again = (uint8_t *)(packet_buffer_list[tdt]);
-	cprintf("printing data again \n");
-	
-	for(uint32_t i = 0; i < size; i++){
-		cprintf("%d ",data_again[i]);
-	}
-	cprintf("\n");
 
 	if( !(trans_descr_list[tdt].status & E1000_STATUS_DD) ){
 		return -E_E1000_TRANS_FULL;
