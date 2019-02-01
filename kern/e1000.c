@@ -125,6 +125,8 @@ int e1000_packet_try_recv(uint8_t *buff){
 
 int e1000_packet_try_send(uint8_t *data, uint32_t size, uint32_t envid){
 	volatile uint32_t tdt = getreg(E1000_TDT);
+	if(size > PKT_MAX_SIZE)
+		return -E_E1000_PKT_TOO_BIG;
 	memcpy(packet_buffer_list[tdt],data,size);
 	struct tx_desc desc = make_packet((uint8_t *)packet_buffer_list[tdt],size);
 

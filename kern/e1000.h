@@ -38,7 +38,7 @@
 #define E1000_CMD_EOP 0x1
 #define E1000_STATUS_DD 0x1
 #define MAX_ETH_PKT_SZ 0x5EE
-
+#define PKT_MAX_SIZE 1518
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
 #define E1000_RXD_STAT_EOP      0x02    /* End of Packet */

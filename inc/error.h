@@ -25,11 +25,9 @@ enum {
 	E_FILE_EXISTS	,	// File already exists
 	E_NOT_EXEC	,	// File not a valid executable
 	E_NOT_SUPP	,	// Operation not supported
-
 	E_E1000_TRANS_FULL    ,      //E1000 transmit buffer full
-
 	E_E1000_RECV_EMPTY,
-	
+	E_E1000_PKT_TOO_BIG,
 	MAXERROR
 };
 

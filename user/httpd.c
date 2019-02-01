@@ -78,7 +78,26 @@ static int
 send_data(struct http_request *req, int fd)
 {
 	// LAB 6: Your code here.
-	panic("send_data not implemented");
+	struct Stat stat;
+	fstat(fd, &stat);
+
+	uint32_t pkt_sz = 1536;
+	uint8_t buff[pkt_sz];
+/*	static uint8_t* buff = malloc(stat.st_size);
+	int i = 0;
+	for(i = 0; i + pkt_sz < stat.st_size; i+=pkt_sz){
+		read(fd,&buff[i],pkt_sz);
+		if (write(req->sock, &buff[i], pkt_sz) < 0)
+			return -1;
+
+		
+			}*/
+	read(fd,buff,pkt_sz);
+	write(req->sock, buff, pkt_sz);
+	//read(fd,buff[i],stat.st_size - i);
+	return 0;
+
+	
 }
 
 static int
@@ -229,7 +248,29 @@ send_file(struct http_request *req)
 	// set file_size to the size of the file
 
 	// LAB 6: Your code here.
-	panic("send_file not implemented");
+	
+	if((fd = open(req->url, O_RDONLY))<0){
+		r = fd;
+		for(int i = 0; i < 10; i++){
+			cprintf("%c",req->url[i]);
+		}
+		cprintf("\n");
+		cprintf("error 1 \n");
+		send_error(req,404);
+		goto end;
+	}
+	
+	struct Stat stat;
+	fstat(fd, &stat);
+	
+	if(stat.st_isdir){
+		r = -1;
+		cprintf("error 2 \n");
+		send_error(req,404);
+		goto end;
+	}
+	
+	file_size = stat.st_size;
 
 	if ((r = send_header(req, 200)) < 0)
 		goto end;
