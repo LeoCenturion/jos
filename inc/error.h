@@ -27,6 +27,8 @@ enum {
 	E_NOT_SUPP	,	// Operation not supported
 
 	E_E1000_TRANS_FULL    ,      //E1000 transmit buffer full
+
+	E_E1000_RECV_EMPTY,
 	
 	MAXERROR
 };

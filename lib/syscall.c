@@ -126,3 +126,7 @@ int
 sys_packet_try_send(uint8_t *data, uint32_t size){
 	return syscall(SYS_packet_try_send,0,(uint32_t)data,size,0,0,0);
 }
+int
+sys_packet_try_recv(uint8_t *buffer){
+	return syscall(SYS_packet_try_recv,0,(uint32_t)buffer,0,0,0,0);
+}

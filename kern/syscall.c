@@ -464,6 +464,10 @@ sys_packet_try_send(uint8_t *data, uint32_t size){
 	return e1000_packet_try_send(data,size,envid); 
 	
 }
+static int
+sys_packet_try_recv(uint8_t *buff){
+	return e1000_packet_try_recv(buff);
+}
 
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -510,7 +514,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	case SYS_time_msec:
 		return time_msec();
 	case SYS_packet_try_recv:
-		panic("SYS_packet_try_recv not implemented");
+		return sys_packet_try_recv((uint8_t *) a1);
 	case SYS_packet_try_send:
 		return sys_packet_try_send( (uint8_t *) a1, (uint32_t) a2);
 	default:
