@@ -80,21 +80,11 @@ send_data(struct http_request *req, int fd)
 	// LAB 6: Your code here.
 	struct Stat stat;
 	fstat(fd, &stat);
-
-	uint32_t pkt_sz = 1536;
-	uint8_t buff[pkt_sz];
-/*	static uint8_t* buff = malloc(stat.st_size);
-	int i = 0;
-	for(i = 0; i + pkt_sz < stat.st_size; i+=pkt_sz){
-		read(fd,&buff[i],pkt_sz);
-		if (write(req->sock, &buff[i], pkt_sz) < 0)
-			return -1;
-
-		
-			}*/
-	read(fd,buff,pkt_sz);
-	write(req->sock, buff, pkt_sz);
-	//read(fd,buff[i],stat.st_size - i);
+	uint32_t sz = stat.st_size;
+	uint8_t *buff = malloc(sz);
+	read(fd,buff,sz);
+	write(req->sock, buff, sz);
+	free(buff);
 	return 0;
 
 	
@@ -251,11 +241,6 @@ send_file(struct http_request *req)
 	
 	if((fd = open(req->url, O_RDONLY))<0){
 		r = fd;
-		for(int i = 0; i < 10; i++){
-			cprintf("%c",req->url[i]);
-		}
-		cprintf("\n");
-		cprintf("error 1 \n");
 		send_error(req,404);
 		goto end;
 	}
@@ -265,13 +250,10 @@ send_file(struct http_request *req)
 	
 	if(stat.st_isdir){
 		r = -1;
-		cprintf("error 2 \n");
 		send_error(req,404);
 		goto end;
 	}
-	
-	file_size = stat.st_size;
-
+		
 	if ((r = send_header(req, 200)) < 0)
 		goto end;
 

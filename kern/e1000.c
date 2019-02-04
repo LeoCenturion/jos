@@ -25,6 +25,16 @@ setreg(uint32_t offset, uint32_t value)
   *(volatile uint32_t *) (bar0_addr + offset) = value;
 }
 void transmit_initialization( volatile uint8_t *addr){
+	
+	for(int i=0; i<E1000_TDL_SIZE; i++){
+		struct PageInfo *page = page_alloc(PTE_U | PTE_P | PTE_W);
+		char *page_va = page2kva(page);
+		packet_buffer_list[i] = page_va;
+		trans_descr_list[i].cmd = E1000_CMD_RS;
+		trans_descr_list[i].status = E1000_STATUS_DD;
+
+	}
+	
 	setreg(E1000_TDBAL, PADDR((void *)trans_descr_list));
 	uint32_t tdbal = getreg(E1000_TDBAL);
 
@@ -45,8 +55,7 @@ void transmit_initialization( volatile uint8_t *addr){
 
 	volatile uint32_t *tipg = (uint32_t*)(bar0_addr + E1000_TIPG);
 	setreg(E1000_TIPG,E1000_TIPG_IEEE);
-
-	//cprintf("TDBAL = %x \nTDBAH = %x  \nTDLEN = %d \nTDT = %x \nTDH = %x \nTCTL = %x \nTIPG = %x\n",tdbal,*tdbah,*tdlen,*tdt,*tdh,*tctl,*tipg);
+	
 	if( *tdlen & 0xFF)  
  		panic("TDLEN unaligned\n"); 
 
@@ -87,8 +96,7 @@ void receive_initialization(volatile uint8_t *addr){
 	uint32_t rdt = getreg(E1000_RDT);
 	uint32_t rdh = getreg(E1000_RDH);
 	uint32_t rctl = getreg(E1000_RCTL);
-	
-//	cprintf("RAL = %lx RAH = %lx \nRDBAL = %x  \nRDLEN = %x \nRDT = %x \nRDH = %x \nRCTL = %x ",ral,rah,rdbal,rdlen,rdt,rdh,rctl);
+
 }
 
 
@@ -153,20 +161,7 @@ int attach_e1000(struct pci_func *pcif){
 
 	uint32_t *status_reg = (void *)((uint32_t )bar0_addr + (uint32_t)0x8 );
 
-//	cprintf("reg_base = %x \nreg_size = %d \nmap = %x \ntdl = %x \n",pcif->reg_base[0], pcif->reg_size[0], bar0_addr, trans_descr_list); 
-//	cprintf("status_reg = %x \n", *status_reg); 
-
 	transmit_initialization(bar0_addr);
-
-	for(int i=0; i<E1000_TDL_SIZE; i++){
-		struct PageInfo *page = page_alloc(PTE_U | PTE_P | PTE_W);
-		char *page_va = page2kva(page);
-		packet_buffer_list[i] = page_va;
-		trans_descr_list[i].cmd = E1000_CMD_RS;
-		trans_descr_list[i].status = E1000_STATUS_DD;
-
-	}
-
 
 	receive_initialization(bar0_addr);	
 	return 0;

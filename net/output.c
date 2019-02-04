@@ -33,4 +33,5 @@ output(envid_t ns_envid)
 			}
 		}
 	}
+	free(rcv_pg);
 }
